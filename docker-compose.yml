@@ -1,0 +1,53 @@
+services:
+  # https://openobserve.ai/docs/guide/quickstart/#self-hosted-installation
+  OpenObserve:
+    image: public.ecr.aws/zinclabs/openobserve:latest
+    container_name: OpenObserve
+    # logging:
+    #   driver: syslog
+    #   options:
+    #     syslog-address: tcp://syslog-ng:514
+    ports:
+      - 5080:5080
+    volumes:
+      - ./openobserve/data/:/data/
+    environment:
+      - TZ=Asia/Tokyo
+    env_file:
+      - ./openobserve/.env
+    restart: unless-stopped
+
+  # https://docs.fluentd.org/container-deployment/docker-compose
+  fluentd:
+    image: bitnami/fluentd:1.17.0-debian-12-r3
+    container_name: fluentd
+    volumes:
+      - ./fluentd/conf/fluent.conf:/opt/bitnami/fluentd/conf/fluentd.conf
+    links:
+      - "OpenObserve"
+    # ports:
+    #   - 5140:5140
+    #   - 5140:5140/udp
+    environment:
+      - TZ=Asia/Tokyo
+    restart: unless-stopped
+
+  # https://docs.linuxserver.io/images/docker-syslog-ng/
+  syslog-ng:
+    image: lscr.io/linuxserver/syslog-ng:4.7.1
+    container_name: syslog-ng
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Tokyo
+    volumes:
+      - ./syslog-ng/conf/:/config/
+      # - ./syslog-ng/conf/syslog-ng.conf:/etc/syslog-ng/syslog-ng.conf
+      # - ./syslog-ng/conf/syslog-ng.conf:/defaults/syslog-ng.conf
+      # - ./syslog-ng/log/:/var/log/
+    ports:
+      - 514:6601/tcp   # syslog TCP
+      - 514:5514/udp   # syslog UDP
+      # - 6514:6514/tcp  # syslog TLS きちんと設定していないので使えない
+    restart: unless-stopped
+
