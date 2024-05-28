@@ -1,0 +1,95 @@
+#!/bin/bash
+
+# 送信メッセージ数
+count=1000
+
+# 送信元 IP の頭の 3オクテット
+src_IP_prefix=192.168.0
+# syslog サーバの IP と ポート (udpのみ)
+# syslog_srv=127.0.0.1
+# syslog_port=514
+
+# syslog_srv が設定していなければ、見つけたインターフェースの一つ目のアドレスを指定
+function physical_if_list(){
+  for DEV in $(find /sys/devices -name net | grep -v virtual);
+  do
+    ls $DEV/
+  done
+}
+
+if [ "" == "$syslog_srv" ]; then
+  if=$(physical_if_list | head -1)
+  syslog_srv=$(ip -4 -o addr show $if | sed -re 's/.*net (.[^/]*).*/\1/g')
+fi
+
+syslog_port=${syslog_port:=514}
+
+# if         : 見つかった一つ目のインターフェース
+# syslog_srv : syslog のメッセージを送る先のアドレス
+
+# ダミーアプリケーション名
+APP_0=init
+APP_1=inetd
+APP_2=nfsd
+APP_3=ypbind
+APP_4=ypserv
+APP_5=rpcinfo
+APP_6=rsh
+APP_7=rlogin
+APP_8=syslogd
+APP_9=nscd
+APP_10=syseventd
+APP_11=svc.startd
+APP_12=svc.configd
+APP_13=svc.periodicd
+APP_14=automountd
+APP_15=ttymon
+APP_16=mgetty
+
+
+printf '+--- ---- ---- ---- ---- ---- ---- ----+\n'
+printf "| message send to  %s:%d\n" "$syslog_srv" "$syslog_port"
+printf '+--- ---- ---- ---- ---- ---- ---- ----+\n'
+
+echo "=====  メッセージ生成時刻         送信完了時刻 ======"
+
+START_TIME=$(date +%s)
+START_TIMEl=$(date +%s.%N)
+ for ((i=1; i<=$count; i++)); do
+  fac=$((RANDOM % 12))          # Facility
+  sev=$((RANDOM % 8))           # Severity
+  pri=$(($fac * 8 + $sev))      # priority
+  n=$((RANDOM % 255))           # 送信元 IP の 4オクテット目
+  host=host_$n                  # hostname
+  app=$(eval echo \$APP_$((RANDOM % 17))) # application name
+  pid=$!                        # pid
+  messageid=ID$((RANDOM))       # message id
+
+  date=$(LANG=C date +"%F %X %z")
+
+  log_file=$( mktemp syslog-gen_XXXXXXXX )
+  eval echo -n "\<$pri\> 1 $date $host $app $pid $messageid The quick brown fox jumps over the lazy dog" > $log_file
+  len=$(ls -l $log_file | awk '{print $5}')
+  ( (hping3 -q -2 -i u10 -c 1 -p $syslog_port -d $len -E $log_file -a ${src_IP_prefix}.$n $syslog_srv ; rm $log_file) 2>&- >&- ;\
+		  printf "===== $date = %s  %4d/%d\r" "$(LANG=C date +%X)" $i $count )&
+  # ログメッセージを生成した時間と送信した時間を比較する
+
+
+  # 同時実行数の制限
+  while : ; do
+    if [ $(pgrep -c hping) -gt 10 ] ; then
+      sleep 1
+    else
+      break
+    fi
+  done
+done
+END_TIME=$(date +%s)
+END_TIMEl=$(date +%s.%N)
+
+echo
+printf '+--- ---- ---- ---- ---- ---- ---- ----+\n'
+printf '| done -- ---- ---- ---- ---- ---- ----|\n'
+printf '| %3d sec --- %7s mess/sec --- ----|\n'  $(( $END_TIME - $START_TIME )) $(echo "scale=3 ; $count/($END_TIMEl - $START_TIMEl)" | bc -l)
+
+

@@ -19,10 +19,13 @@ services:
 
   # https://docs.fluentd.org/container-deployment/docker-compose
   fluentd:
-    image: bitnami/fluentd:1.17.0-debian-12-r3
+    # image: bitnami/fluentd:1.17.0-debian-12-r3
+    image: fluent/fluentd:v1.17.0-1.0
     container_name: fluentd
     volumes:
-      - ./fluentd/conf/fluent.conf:/opt/bitnami/fluentd/conf/fluentd.conf
+      # - ./fluentd/conf/fluent.conf:/opt/bitnami/fluentd/conf/fluent.conf
+      - ./fluentd/conf/fluent.conf:/fluentd/etc/fluent.conf
+      - ./fluentd/log/:/fluentd/log/
     links:
       - "OpenObserve"
     # ports:
