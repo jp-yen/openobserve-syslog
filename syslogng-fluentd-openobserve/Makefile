@@ -19,9 +19,9 @@ ps:
 	@docker compose ps
 
 clean: $(NEED_ROOT) down
-	@find ./syslog-ng/conf/log/ ./syslog-ng/conf/syslog-ng.persist -type f -delete
-	@find ./fluentd/log/ -type f -delete
-	@find ./openobserve/data/ -mindepth 1 \! -name '.gitkeep' -delete 
+	@find ./syslog-ng/conf/log/ ./syslog-ng/conf/syslog-ng.persist -type f -delete || true
+	@find ./fluentd/log/ -type f -delete                               || true
+	@find ./openobserve/data/ -mindepth 1 \! -name '.gitkeep' -delete  || true
 
 
 # fluentd に直接 syslog を投げる
