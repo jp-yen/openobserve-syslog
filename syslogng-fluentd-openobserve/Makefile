@@ -1,16 +1,24 @@
 SHELL = /bin/bash
 
+SYSLOG_NG      = /usr/sbin/syslog-ng
+FLUENTD        = /usr/sbin/fluentd
+SYSLOG_NG_CONF = ./syslog-ng/conf/syslog-ng.conf
+FLUENTD_CONF   = ./fluentd/conf/fluent.conf
 
 help:
-	@echo make up            起動
+	@echo make up            起動 (起動時は何もしない)
 	@echo make down          停止
+	@echo make restart       停止して起動
 	@echo make ps            起動状況を確認
 	@echo make clean         データ、ログの削除
-	@echo make flood_syslog  syslog メッセージを送信
+	@echo make flood_syslog  ダミーの syslog メッセージを送信
 	@echo make syslog_s      docker の中の syslog-ng へ直接 syslog を送信
-	@echo make syslog_f      docker の中の fluentd へ直接 syslog を送信
+	@echo make syslog_f      docker の中の fluentd   へ直接 syslog を送信
 
 up: NO_ROOT
+	@docker compose up -d
+
+restart: NO_ROOT
 	@docker compose down && docker compose up -d
 
 down:
@@ -21,8 +29,19 @@ ps: NO_ROOT
 
 clean: NEED_ROOT down
 	@find ./syslog-ng/conf/   -mindepth 1 \! -name 'syslog-ng.conf' -print -delete || true
-	@find ./fluentd/log       -mindepth 1 \! -name '.gitkeep'       -print -delete || true
+	@find ./fluentd/log/      -mindepth 1 \! -name '.gitkeep'       -print -delete || true
 	@find ./openobserve/data/ -mindepth 1 \! -name '.gitkeep'       -print -delete || true
+
+# ローカル環境にインストールしているなら事前に syntax-error をチェックすることは可能
+# syslog-ng : apt install syslog-ng
+# fluentd : see  https://docs.fluentd.org/installation/install-by-deb
+conf_check: NEED_ROOT
+	@echo ==== syslog-ng config check ======
+	@test -x $(SYSLOG_NG) && $(SYSLOG_NG) -s -f $(SYSLOG_NG_CONF)
+	@echo ==================================
+	@echo ==== fluentd config check ========
+	@test -x $(FLUENTD)   && $(FLUENTD) --dry-run -c $(FLUENTD_CONF)
+	@echo ==================================
 
 
 # fluentd に直接 syslog を投げる
