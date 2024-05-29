@@ -9,11 +9,9 @@ syslog-ng でファイルに吐かせて、tail -f の方がずっと良い。
 
 もう少し高速化の方法はないものか。
 
-- (linuxserver/syslog-ng)[https://docs.linuxserver.io/images/docker-syslog-ng/]
+- [linuxserver/syslog-ng](https://docs.linuxserver.io/images/docker-syslog-ng/)
 
 
 fluentd は Dockerfile の EXPOSE の関係で docker ps で 5140/tcp, 24224/tcp を
 使っているように見えるが、今回は使っていない。
-
-
 
