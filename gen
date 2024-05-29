@@ -53,8 +53,7 @@ printf '+--- ---- ---- ---- ---- ---- ---- ----+\n'
 
 echo "=====  メッセージ生成時刻         送信完了時刻 ======"
 
-START_TIME=$(date +%s)
-START_TIMEl=$(date +%s.%N)
+START_TIME=$(date +%s.%N)
  for ((i=1; i<=$count; i++)); do
   fac=$((RANDOM % 12))          # Facility
   sev=$((RANDOM % 8))           # Severity
@@ -68,7 +67,7 @@ START_TIMEl=$(date +%s.%N)
   date=$(LANG=C date +"%F %X %z")
 
   log_file=$( mktemp syslog-gen_XXXXXXXX )
-  eval echo -n "\<$pri\> 1 $date $host $app $pid $messageid The quick brown fox jumps over the lazy dog" > $log_file
+  eval echo -n "\<$pri\> 1 $date $host $app $pid $messageid The quick brown fox jumps over the lazy dog to ${syslog_srv}:${syslog_port}" > $log_file
   len=$(ls -l $log_file | awk '{print $5}')
   ( (hping3 -q -2 -i u10 -c 1 -p $syslog_port -d $len -E $log_file -a ${src_IP_prefix}.$n $syslog_srv ; rm $log_file) 2>&- >&- ;\
 		  printf "===== $date = %s  %4d/%d\r" "$(LANG=C date +%X)" $i $count )&
@@ -78,18 +77,26 @@ START_TIMEl=$(date +%s.%N)
   # 同時実行数の制限
   while : ; do
     if [ $(pgrep -c hping) -gt 10 ] ; then
-      sleep 1
+      sleep 0.3
     else
       break
     fi
   done
 done
-END_TIME=$(date +%s)
-END_TIMEl=$(date +%s.%N)
+
+# 終了待ち
+while : ; do
+  if [ $(pgrep -c hping) -gt 0 ] ; then
+    sleep 0.1
+  else
+    break
+  fi
+done
+END_TIME=$(date +%s.%N)
 
 echo
 printf '+--- ---- ---- ---- ---- ---- ---- ----+\n'
-printf '| done -- ---- ---- ---- ---- ---- ----|\n'
-printf '| %3d sec --- %7s mess/sec --- ----|\n'  $(( $END_TIME - $START_TIME )) $(echo "scale=3 ; $count/($END_TIMEl - $START_TIMEl)" | bc -l)
-
+printf '| done -- START %s ----|\n' "$(date +"%F %T" -d @$START_TIME)"
+printf '|--- ----   END %s ----|\n' "$(date +"%F %T" -d @$END_TIME)"
+printf '| elapsed %7s sec -- %6s mess/sec|\n' $(echo "scale=3 ; a = $END_TIME - $START_TIME ; a/1.0 ;  $count/a" | bc -l)
 
