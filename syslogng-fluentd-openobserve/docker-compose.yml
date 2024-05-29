@@ -3,6 +3,8 @@ services:
   OpenObserve:
     image: public.ecr.aws/zinclabs/openobserve:latest
     container_name: OpenObserve
+    logging:
+      driver: "local"
     # logging:
     #   driver: syslog
     #   options:
@@ -22,6 +24,8 @@ services:
     # image: bitnami/fluentd:1.17.0-debian-12-r3
     image: fluent/fluentd:v1.17.0-1.0
     container_name: fluentd
+    logging:
+      driver: "local"
     volumes:
       # - ./fluentd/conf/fluent.conf:/opt/bitnami/fluentd/conf/fluent.conf
       - ./fluentd/conf/fluent.conf:/fluentd/etc/fluent.conf
@@ -39,6 +43,8 @@ services:
   syslog-ng:
     image: lscr.io/linuxserver/syslog-ng:4.7.1
     container_name: syslog-ng
+    logging:
+      driver: "local"
     environment:
       - PUID=1000
       - PGID=1000
