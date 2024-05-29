@@ -50,6 +50,7 @@ APP_16=mgetty
 printf '+--- ---- ---- ---- ---- ---- ---- ----+\n'
 printf "| message send to  %s:%d\n" "$syslog_srv" "$syslog_port"
 printf '+--- ---- ---- ---- ---- ---- ---- ----+\n'
+printf '|--- ---- START %s ----|\n' "$(date +"%F %T")"
 
 echo "=====  メッセージ生成時刻         送信完了時刻 ======"
 
@@ -96,7 +97,6 @@ END_TIME=$(date +%s.%N)
 
 echo
 printf '+--- ---- ---- ---- ---- ---- ---- ----+\n'
-printf '| done -- START %s ----|\n' "$(date +"%F %T" -d @$START_TIME)"
-printf '|--- ----   END %s ----|\n' "$(date +"%F %T" -d @$END_TIME)"
+printf '| done --   END %s ----|\n' "$(date +"%F %T" -d @$END_TIME)"
 printf '| elapsed %7s sec -- %6s mess/sec|\n' $(echo "scale=3 ; a = $END_TIME - $START_TIME ; a/1.0 ;  $count/a" | bc -l)
 
