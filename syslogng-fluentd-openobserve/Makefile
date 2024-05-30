@@ -16,6 +16,9 @@ help:
 	@echo make syslog_f      docker の中の fluentd   へ直接 syslog を送信
 
 up: NO_ROOT
+	@install -d -m 777 ./syslog-ng/conf/log/
+	@install -d -m 777 ./fluentd/log/
+	@install -d -m 777 ./openobserve/data/
 	@docker compose up -d
 
 restart: NO_ROOT
