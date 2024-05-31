@@ -6,19 +6,23 @@ SYSLOG_NG_CONF = ./syslog-ng/conf/syslog-ng.conf
 FLUENTD_CONF   = ./fluentd/conf/fluent.conf
 
 help:
-	@echo make up            起動 (起動時は何もしない)
-	@echo make down          停止
-	@echo make restart       停止して起動
-	@echo make ps            起動状況を確認
-	@echo make clean         データ、ログの削除
-	@echo make flood_syslog  ダミーの syslog メッセージを送信
-	@echo make syslog_s      docker の中の syslog-ng へ直接 syslog を送信
-	@echo make syslog_f      docker の中の fluentd   へ直接 syslog を送信
+	@echo "  Usage:"
+	@echo ""
+	@echo "    make up            (-) 起動 - 起動時は何もしない"
+	@echo "    make down          (-) 停止"
+	@echo "    make restart       (-) 停止して起動"
+	@echo "    make ps            (-) 起動状況を確認"
+	@echo "    make clean         (*) データ、ログの削除"
+	@echo "    make conf_check    (-) config ファイルのチェック"
+	@echo "                           ホスト環境に fluentd, syslog-ng をインストールしていること"
+	@echo "    make flood_syslog  (*) ダミーの syslog メッセージを送信"
+	@echo "    make syslog_s      (*) docker の中の syslog-ng へ直接 syslog を送信"
+	@echo "    make syslog_f      (*) docker の中の fluentd   へ直接 syslog を送信"
+	@echo ""
+	@echo "                       (-) : 一般ユーザで起動"
+	@echo "                       (*) : root ユーザで起動"
 
 up: NO_ROOT
-	@install -d -m 777 ./syslog-ng/conf/log/
-	@install -d -m 777 ./fluentd/log/
-	@install -d -m 777 ./openobserve/data/
 	@docker compose up -d
 
 restart: NO_ROOT
@@ -30,15 +34,22 @@ down:
 ps: NO_ROOT
 	@docker compose ps
 
+# 実行時の user/uid は以下のようなコマンドで確認
+# docker exec -it fluentd ps -a
+# docker exec -it fluentd cat /etc/passwd
 clean: NEED_ROOT down
 	@find ./syslog-ng/conf/   -mindepth 1 \! -name 'syslog-ng.conf' -print -delete || true
 	@find ./fluentd/log/      -mindepth 1 \! -name '.gitkeep'       -print -delete || true
 	@find ./openobserve/data/ -mindepth 1 \! -name '.gitkeep'       -print -delete || true
+	@install -d -m 777 -o 100  -g 101  ./fluentd/log/
+	@install -d -m 777 -o 1000 -g 1000 ./syslog-ng/conf/log/
+	@install -d -m 777 -o 0    -g 0    ./openobserve/data/
 
 # ローカル環境にインストールしているなら事前に syntax-error をチェックすることは可能
 # syslog-ng : apt install syslog-ng
-# fluentd : see  https://docs.fluentd.org/installation/install-by-deb
-conf_check: NEED_ROOT
+# fluentd   : see  https://docs.fluentd.org/installation/install-by-deb
+#             curl -fsSL https://toolbelt.treasuredata.com/sh/install-debian-bullseye-fluent-package5.sh | sh
+conf_check:
 	@echo ==== syslog-ng config check ======
 	@test -x $(SYSLOG_NG) && $(SYSLOG_NG) -s -f $(SYSLOG_NG_CONF)
 	@echo ==================================
