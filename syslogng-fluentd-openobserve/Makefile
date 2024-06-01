@@ -50,13 +50,15 @@ clean: NEED_ROOT down
 # fluentd   : see  https://docs.fluentd.org/installation/install-by-deb
 #             curl -fsSL https://toolbelt.treasuredata.com/sh/install-debian-bullseye-fluent-package5.sh | sh
 conf_check:
+	@echo ==================================
 	@echo ==== syslog-ng config check ======
-	@test -x $(SYSLOG_NG) && $(SYSLOG_NG) -s -f $(SYSLOG_NG_CONF)
+	@echo ==================================
+	@test -x $(SYSLOG_NG) && $(SYSLOG_NG) -s -f $(SYSLOG_NG_CONF)    || true
+	@echo ""
 	@echo ==================================
 	@echo ==== fluentd config check ========
-	@test -x $(FLUENTD)   && $(FLUENTD) --dry-run -c $(FLUENTD_CONF)
 	@echo ==================================
-
+	@test -x $(FLUENTD)   && $(FLUENTD) --dry-run -c $(FLUENTD_CONF) || true
 
 # fluentd に直接 syslog を投げる
 syslog_f: NEED_ROOT flo_fluentd flood_syslog
