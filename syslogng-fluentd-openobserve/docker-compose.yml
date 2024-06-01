@@ -26,8 +26,6 @@ services:
       # - ./fluentd/conf/fluent.conf:/opt/bitnami/fluentd/conf/fluent.conf
       - ./fluentd/conf/fluent.conf:/fluentd/etc/fluent.conf
       - ./fluentd/log/:/fluentd/log/
-    links:
-      - "OpenObserve"
     environment:
       - TZ=Asia/Tokyo
     restart: unless-stopped
