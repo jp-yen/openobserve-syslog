@@ -1,6 +1,8 @@
 services:
   coredns:
-    # 
+    #
+    # need go-lang https://go.dev/doc/install
+    #
     # git clone https://github.com/coredns/coredns.git
     # cd coredns
     # setenv CFLAGS "-O3 -pipe -march=native -mtune=native" ... 多分効いてない...orz
