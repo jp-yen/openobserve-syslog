@@ -1,0 +1,11 @@
+#!/bin/bash
+
+restart(){
+    docker compose -f openobserve-syslog/docker-coredns/docker-compose.yml restart 2>&1 >/dev/null
+}
+
+if [ "restart" = "$1" ]; then
+    ( restart ) 2>&1 >/dev/null
+else
+    ( nslookup www.yahoo.co.jp 127.1 || restart ) 2>&1 >/dev/null
+fi
