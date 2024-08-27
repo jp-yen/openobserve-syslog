@@ -1,7 +1,7 @@
 services:
   # https://openobserve.ai/docs/guide/quickstart/#self-hosted-installation
   OpenObserve:
-    image: public.ecr.aws/zinclabs/openobserve:latest
+    image: public.ecr.aws/zinclabs/openobserve:latest-simd
     container_name: OpenObserve
     logging:
       driver: "local"
