@@ -1,7 +1,8 @@
 services:
   # https://openobserve.ai/docs/guide/quickstart/#self-hosted-installation
   OpenObserve:
-    image: public.ecr.aws/zinclabs/openobserve:latest-simd
+    # simd は AVX512 に対応していないと (Xeon とか) 動作しない
+    image: public.ecr.aws/zinclabs/openobserve:latest
     container_name: OpenObserve
     logging:
       driver: "local"
@@ -13,21 +14,6 @@ services:
       - TZ=Asia/Tokyo
     env_file:
       - ./openobserve/.env
-    restart: unless-stopped
-
-  # https://docs.fluentd.org/container-deployment/docker-compose
-  fluentd:
-    # image: bitnami/fluentd:1.17.0-debian-12-r3
-    image: fluent/fluentd:v1.17.0-1.0
-    container_name: fluentd
-    logging:
-      driver: "local"
-    volumes:
-      # - ./fluentd/conf/fluent.conf:/opt/bitnami/fluentd/conf/fluent.conf
-      - ./fluentd/conf/fluent.conf:/fluentd/etc/fluent.conf
-      - ./fluentd/log/:/fluentd/log/
-    environment:
-      - TZ=Asia/Tokyo
     restart: unless-stopped
 
   # https://docs.linuxserver.io/images/docker-syslog-ng/
