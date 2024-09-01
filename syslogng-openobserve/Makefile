@@ -1,22 +1,6 @@
 # vim: set tabstop=4 fileencoding=utf-8 fileformat=unix filetype=make :# モードライン
 SHELL = /bin/bash
 
-# syslog-ng の conf_check 用
-# wildcard を展開し、ファイルが無いと変数が空になる
-SYSLOG_NG1	    = $(wildcard /var/lib/docker/overlay*/*/diff/usr/sbin/syslog-ng)
-SYSLOG_NG2	    = $(wildcard /usr/*bin/syslog-ng)
-SYSLOG_NG_CONF	= ./syslog-ng/conf/syslog-ng.conf
-
-ifneq (${SYSLOG_NG1},)
-	SYSLOG_NG = ${SYSLOG_NG1}	# docker 内の syslog-ng を使う : root 権限が必要
-else
-ifneq (${SYSLOG_NG2},)
-	SYSLOG_NG = ${SYSLOG_NG2}	# システムの syslog-ng を使う
-else
-	SYSLOG_NG = false			# syslog-ng が見つからなかった
-endif
-endif
-
 help:
 	@echo "  Usage:"
 	@echo ""
@@ -52,13 +36,16 @@ clean: NEED_ROOT down
 	@install -d -m 777 -o 1000 -g 1000 ./syslog-ng/conf/log/
 	@install -d -m 777 -o 0    -g 0    ./openobserve/data/
 
-# ローカル環境にインストールしているなら事前に syntax-error をチェックすることは可能
-# syslog-ng : apt install syslog-ng
+# syslog-ng の config をチェックする
 conf_check:
 	@echo ==================================
 	@echo ==== syslog-ng config check ======
 	@echo ==================================
-	@test -x $(SYSLOG_NG) && $(SYSLOG_NG) -s -f $(SYSLOG_NG_CONF)    || true
+	@docker run -it --rm --name syslog-ng-conf_check \
+	  -v ./syslog-ng/conf:/config \
+	  lscr.io/linuxserver/syslog-ng \
+	  /usr/sbin/syslog-ng -s -f /config/syslog-ng.conf |\
+	  grep -A 1000 ls.io-init || true
 	@echo ""
 
 # syslog-ng に直接 syslog を投げる
