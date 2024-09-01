@@ -15,7 +15,7 @@ services:
     #
     # docker push 1yen00docker/coredns:$HASH
     #
-    image: 1yen00docker/coredns:0ed689e2d0401bc91b0876f3c0f41c89bbf83b34
+    image: 1yen00docker/coredns:ee4d26b7807856efbf61ebebb2687df21561a787
     container_name: dns
     logging:
       driver: "local"

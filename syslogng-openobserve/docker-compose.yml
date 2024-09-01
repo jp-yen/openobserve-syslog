@@ -18,7 +18,7 @@ services:
 
   # https://docs.linuxserver.io/images/docker-syslog-ng/
   syslog-ng:
-    image: lscr.io/linuxserver/syslog-ng:4.7.1
+    image: lscr.io/linuxserver/syslog-ng:latest
     container_name: syslog-ng
     logging:
       driver: "local"

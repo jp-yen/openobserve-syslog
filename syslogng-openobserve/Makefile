@@ -1,7 +1,21 @@
+# vim: set tabstop=4 fileencoding=utf-8 fileformat=unix filetype=make :# モードライン
 SHELL = /bin/bash
 
-SYSLOG_NG      = /usr/sbin/syslog-ng
-SYSLOG_NG_CONF = ./syslog-ng/conf/syslog-ng.conf
+# syslog-ng の conf_check 用
+# wildcard を展開し、ファイルが無いと変数が空になる
+SYSLOG_NG1	    = $(wildcard /var/lib/docker/overlay*/*/diff/usr/sbin/syslog-ng)
+SYSLOG_NG2	    = $(wildcard /usr/*bin/syslog-ng)
+SYSLOG_NG_CONF	= ./syslog-ng/conf/syslog-ng.conf
+
+ifneq (${SYSLOG_NG1},)
+	SYSLOG_NG = ${SYSLOG_NG1}	# docker 内の syslog-ng を使う : root 権限が必要
+else
+ifneq (${SYSLOG_NG2},)
+	SYSLOG_NG = ${SYSLOG_NG2}	# システムの syslog-ng を使う
+else
+	SYSLOG_NG = false			# syslog-ng が見つからなかった
+endif
+endif
 
 help:
 	@echo "  Usage:"
@@ -71,3 +85,5 @@ NEED_ROOT:
 		exit 255 ;\
 	fi
 
+# ファイルがあっても実行する疑似ターゲット
+.PHONY: help up restart down ps clean conf_check syslog_s flo_syslog flood_syslog NO_ROOT NEED_ROOT
