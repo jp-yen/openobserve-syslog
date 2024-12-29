@@ -19,10 +19,9 @@ services:
     container_name: dns
     logging:
       driver: "local"
-    restart: on-failure
+    restart: always
     ports:
       - '53:53'
       - '53:53/udp'
     volumes:
       - './config:/etc/coredns'
-
