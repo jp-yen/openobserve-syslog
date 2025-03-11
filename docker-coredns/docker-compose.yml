@@ -1,9 +1,16 @@
 services:
   coredns:
     #
+    # config/Corefile : 設定ファイル
+    # config/hosts : 読み込んで DNS で応答 (/etc/hosts とハードリンクしておくと便利)
+    # 
     # need go-lang https://go.dev/doc/install
     #
     # git clone https://github.com/coredns/coredns.git
+    #
+    # ブランチを指定して clone する場合
+    # git clone https://github.com/coredns/coredns.git -b master v1.12.0
+    #
     # cd coredns
     # setenv CFLAGS "-O3 -pipe -march=native -mtune=native" ... 多分効いてない...orz
     # make
@@ -15,7 +22,7 @@ services:
     #
     # docker push 1yen00docker/coredns:$HASH
     #
-    image: 1yen00docker/coredns:ee4d26b7807856efbf61ebebb2687df21561a787
+    image: 1yen00docker/coredns:v1.12.0
     container_name: dns
     logging:
       driver: "local"
