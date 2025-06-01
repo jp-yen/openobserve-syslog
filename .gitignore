@@ -1,0 +1,13 @@
+# hosts ファイル
+docker-coredns/config/hosts
+
+# openobserve のデータディレクトリ
+syslogng-openobserve/openobserve/data/*
+!syslogng-openobserve/openobserve/data/.gitkeep
+
+# syslog-ng の設定関連ファイル
+syslogng-openobserve/syslog-ng/conf/log/*
+!syslogng-openobserve/syslog-ng/conf/log/.gitkeep
+syslogng-openobserve/syslog-ng/conf/syslog-ng.persist
+syslogng-openobserve/syslog-ng/conf/syslog-ng.pid
+
