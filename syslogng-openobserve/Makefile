@@ -9,13 +9,13 @@ help:
 	@echo "    make restart       (-) 停止して起動"
 	@echo "    make ps            (-) 起動状況を確認"
 	@echo "    make clean         (*) データ、ログの削除"
+	@echo "    make update-image  (-) イメージを更新して再起動 (ログは保持)"
 	@echo "    make conf_check    (-) config ファイルのチェック"
-	@echo "                           ホスト環境に syslog-ng をインストールしていること"
 	@echo "    make flood_syslog  (*) ダミーの syslog メッセージを送信"
-	@echo "    make syslog_s      (*) docker の中の syslog-ng へ直接 syslog を送信"
+	@echo "    make syslog_s      (*) Docker 内の syslog-ng へ直接 syslog を送信"
 	@echo ""
-	@echo "                       (-) : 一般ユーザで起動"
-	@echo "                       (*) : root ユーザで起動"
+	@echo "                       (-) : 一般ユーザで実行"
+	@echo "                       (*) : root ユーザで実行"
 
 up: NO_ROOT
 	@docker compose up -d
@@ -29,6 +29,11 @@ down:
 ps: NO_ROOT
 	@docker compose ps
 
+update-image: NO_ROOT
+	@echo "Performing version upgrade: stopping containers, removing old images, and then starting new containers..."
+	@docker compose down --rmi all
+	@docker compose up -d
+
 # 実行時の user/uid は以下のようなコマンドで確認
 clean: NEED_ROOT down
 	@find ./syslog-ng/conf/   -mindepth 1 \! -name 'syslog-ng.conf' -print -delete || true
@@ -36,11 +41,11 @@ clean: NEED_ROOT down
 	@install -d -m 777 -o 1000 -g 1000 ./syslog-ng/conf/log/
 	@install -d -m 777 -o 0    -g 0    ./openobserve/data/
 
-# syslog-ng の config をチェックする
+# syslog-ng の設定ファイルをチェックする
 conf_check:
-	@echo ==================================
-	@echo ==== syslog-ng config check ======
-	@echo ==================================
+	@echo "=================================="
+	@echo "==== syslog-ng config check ======"
+	@echo "=================================="
 	@docker run -it --rm --name syslog-ng-conf_check \
 	  -v ./syslog-ng/conf:/config \
 	  lscr.io/linuxserver/syslog-ng \
@@ -48,7 +53,7 @@ conf_check:
 	  grep -A 1000 ls.io-init || true
 	@echo ""
 
-# syslog-ng に直接 syslog を投げる
+# syslog-ng に直接 syslog メッセージを送信する
 syslog_s: NEED_ROOT flo_syslog flood_syslog
 
 
@@ -73,4 +78,4 @@ NEED_ROOT:
 	fi
 
 # ファイルがあっても実行する疑似ターゲット
-.PHONY: help up restart down ps clean conf_check syslog_s flo_syslog flood_syslog NO_ROOT NEED_ROOT
+.PHONY: help up restart down ps clean update-image conf_check syslog_s flo_syslog flood_syslog NO_ROOT NEED_ROOT
