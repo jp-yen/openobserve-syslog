@@ -9,7 +9,7 @@ services:
     # git clone https://github.com/coredns/coredns.git
     #
     # ブランチを指定して clone する場合
-    # git clone https://github.com/coredns/coredns.git -b master v1.12.0
+    # git clone https://github.com/coredns/coredns.git -b master v1.12.2
     #
     # cd coredns
     # setenv CFLAGS "-O3 -pipe -march=native -mtune=native" ... 多分効いてない...orz
@@ -18,11 +18,12 @@ services:
     # echo 'CMD ["-conf", "/etc/coredns/Corefile"]' >> Dockerfile
     #
     # setenv HASH `git log | awk 'NR==1{print $2}'`
-    # docker buildx build . -t 1yen00docker/coredns:$HASH
+    # docker buildx build . -t 1yen00docker/coredns:$HASH -t 1yen00docker/coredns:1yen00_v1.12.2
     #
-    # docker push 1yen00docker/coredns:$HASH
+    # // docker push 1yen00docker/coredns:$HASH
+    # docker push 1yen00docker/coredns:1yen00_v1.12.2
     #
-    image: 1yen00docker/coredns:v1.12.0
+    image: 1yen00docker/coredns:1yen00_v1.12.2
     container_name: dns
     logging:
       driver: "local"
