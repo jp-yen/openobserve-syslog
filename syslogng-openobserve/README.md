@@ -12,7 +12,7 @@
 `docker-compose.yml` があるディレクトリで以下のコマンドを実行します。
 
 ```sh
-docker-compose up -d
+make up
 ```
 
 ## ログの見方
@@ -68,7 +68,7 @@ docker-compose up -d
 
 2.  **サービスの起動:**
     ```sh
-    docker-compose up -d
+    make up
     ```
 
 3.  **OpenObserve へのアクセス:**
@@ -81,9 +81,9 @@ docker-compose up -d
     OpenObserve の UI で収集されたログを検索・確認できます。
     `docker-compose logs syslog-ng` や `docker-compose logs OpenObserve` で各コンテナのログも確認できます。
 
-6.  **サービスの停止:**
+6.  **サービスの削除:**
     ```sh
-    docker-compose stop
+    make down
     ```
 
 ## Makefile による操作
@@ -94,7 +94,7 @@ docker-compose up -d
     ```sh
     make up
     ```
-*   **コンテナの停止:**
+*   **コンテナの停止、削除:**
     ```sh
     make down
     ```
@@ -168,18 +168,18 @@ pip3 install requests tqdm
     ```
 
 3.  **出力ファイル:**
-    - `logs_merged.csv`: ダウンロードしたすべてのログが統合された CSV ファイル
+    - `logs_merged.csv`: ダウンロードした syslog データ の CSV ファイル
     - 処理中に一時的に `logs_temp_*.csv` ファイルが作成されますが、完了後に自動削除されます
 
 ### 機能
 
 *   **指定期間のログダウンロード**: 開始日時と終了日時を指定してログを取得
-*   **大容量対応**: チャンク単位での分割ダウンロードにより、大量のログも処理可能
+*   **大容量対応**: 分割ダウンロードにより、大量のログも処理可能
 *   **CSV形式での出力**: Excel や他のツールで分析しやすい CSV 形式で保存
 *   **フィールド自動検出**: ログの構造変化に対応してフィールドを自動検出
 *   **プログレスバー表示**: `tqdm` ライブラリによる詳細な進捗表示
     - ダウンロード進捗をパーセンテージで表示
-    - 最後に処理したタイムスタンプを表示
+    - 最後に処理したログのタイムスタンプを表示
     - バッチ処理時間を表示
     - ファイルマージ進捗も表示
 
