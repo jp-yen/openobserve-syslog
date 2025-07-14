@@ -1,14 +1,24 @@
 . {
-    log
-    errors
-    auto
-    reload 10s
-    forward . 1.0.0.1:53
-    forward . 8.8.4.4:53
+	log				# すべてのクエリを記録
+	errors			# エラー発生時にログを記録
+	auto			# bind 形式の zone ファイルの自動読み込み (読み込むファイルの指定なし)
+	reload 10s		# 10秒ごとにチェックし設定変更があったらリロード
+  	timeouts {
+  		read 5s
+  		write 1s
+  		idle 30s
+  	}
 
-    hosts /etc/coredns/hosts {
-		fallthrough
+	hosts /etc/coredns/hosts {
+		fallthrough			# hosts に記載がなければ次 (forward する)
 	}
-	reload
+
+	forward . 1.0.0.1 8.8.4.4 1.1.1.1 8.8.8.8 {
+		health_check 60s	# 60秒ごとにヘルスチェック
+		max_fails 2			# 2回エラーが発生するとフォワード先から除外
+		policy random		# forward 先はランダム
+	}
+
+	loop			# 自分への問い合わせループを検知して防ぐ
 }
 
