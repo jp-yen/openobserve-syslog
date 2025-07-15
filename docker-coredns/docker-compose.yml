@@ -25,11 +25,17 @@ services:
     #
     image: 1yen00docker/coredns:1yen00_v1.12.2
     container_name: dns
-    logging:
-      driver: "local"
     restart: always
     ports:
       - '53:53'
       - '53:53/udp'
     volumes:
       - './config:/etc/coredns'
+    logging:  
+      # driver: "local"   # ローカルドライバを使用するなら以下を削除
+      driver: "syslog"  # syslog でログを送信する
+      options:
+        syslog-address: "udp://192.168.0.252:514"
+        syslog-facility: "daemon"
+        syslog-format: "rfc5424"
+        tag: "CoreDNS"
