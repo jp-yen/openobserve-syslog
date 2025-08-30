@@ -12,6 +12,17 @@ services:
     # git clone https://github.com/coredns/coredns.git -b master v1.12.2
     #
     # cd coredns
+
+    ## GHSA-2464-8j7c-4cjm 対応 (go-viper/mapstructure/v2@v2.3.0 以前)
+    ## アップデート
+    ## go get github.com/go-viper/mapstructure/v2@v2.4.0
+    ##
+    ## 依存関係を最適化
+    ## go mod tidy
+    ##
+    ## バージョンの確認
+    ## go list -m all | grep mapstructure
+
     # setenv CFLAGS "-O3 -pipe -march=native -mtune=native" ... 多分効いてない...orz
     # make
     # echo 'VOLUME ["/etc/coredns"]'                >> Dockerfile
@@ -23,6 +34,8 @@ services:
     # // docker push 1yen00docker/coredns:$HASH
     # docker push 1yen00docker/coredns:1yen00_v1.12.3
     #
+    
+
     image: 1yen00docker/coredns:1yen00_v1.12.3
     container_name: dns
     restart: always
