@@ -17,13 +17,13 @@ services:
     # echo 'VOLUME ["/etc/coredns"]'                >> Dockerfile
     # echo 'CMD ["-conf", "/etc/coredns/Corefile"]' >> Dockerfile
     #
-    # setenv HASH `git log | awk 'NR==1{print $2}'`
-    # docker buildx build . -t 1yen00docker/coredns:$HASH -t 1yen00docker/coredns:1yen00_v1.12.2
+    # setenv HASH `git rev-parse HEAD`
+    # docker buildx build . -t 1yen00docker/coredns:$HASH -t 1yen00docker/coredns:1yen00_v1.12.3
     #
     # // docker push 1yen00docker/coredns:$HASH
-    # docker push 1yen00docker/coredns:1yen00_v1.12.2
+    # docker push 1yen00docker/coredns:1yen00_v1.12.3
     #
-    image: 1yen00docker/coredns:1yen00_v1.12.2
+    image: 1yen00docker/coredns:1yen00_v1.12.3
     container_name: dns
     restart: always
     ports:
@@ -35,7 +35,7 @@ services:
       # driver: "local"   # ローカルドライバを使用するなら以下を削除
       driver: "syslog"  # syslog でログを送信する
       options:
-        syslog-address: "udp://192.168.0.252:514"
+        syslog-address: "tcp://192.168.0.252:514"
         syslog-facility: "daemon"
         syslog-format: "rfc5424"
         tag: "CoreDNS"
