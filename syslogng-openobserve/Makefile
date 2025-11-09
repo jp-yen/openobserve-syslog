@@ -11,6 +11,7 @@ help:
 	@echo "    make clean         (*) データ、ログの削除"
 	@echo "    make update-image  (-) イメージを更新して再起動 (ログは保持)"
 	@echo "    make conf_check    (-) config ファイルのチェック"
+	@echo "    make show_version  (-) コンテナのバージョン表示"
 	@echo "    make flood_syslog  (*) ダミーの syslog メッセージを送信"
 	@echo "    make syslog_s      (*) Docker 内の syslog-ng へ直接 syslog を送信"
 	@echo ""
@@ -42,7 +43,7 @@ clean: NEED_ROOT down
 	@install -d -m 777 -o 0    -g 0    ./openobserve/data/
 
 # syslog-ng の設定ファイルをチェックする
-conf_check:
+conf_check: NO_ROOT
 	@echo "=================================="
 	@echo "==== syslog-ng config check ======"
 	@echo "=================================="
@@ -52,6 +53,22 @@ conf_check:
 	  /usr/sbin/syslog-ng -s -f /config/syslog-ng.conf |\
 	  grep -A 1000 ls.io-init || true
 	@echo ""
+
+show_version: NO_ROOT
+	@echo "=================================="
+	@echo "==== syslog-ng version ==========="
+	@echo "=================================="
+	@docker run -it --rm --name syslog-ng-version \
+	  lscr.io/linuxserver/syslog-ng \
+	  /usr/sbin/syslog-ng --version |\
+	  grep -A 1000 ls.io-init || true
+	@echo "=================================="
+	@echo "==== OpenObserve version ========="
+	@echo "=================================="
+	@docker run -it --rm --name openobserve_version \
+	  public.ecr.aws/zinclabs/openobserve:latest \
+	  /openobserve --version || true
+
 
 # syslog-ng に直接 syslog メッセージを送信する
 syslog_s: NEED_ROOT flo_syslog flood_syslog

@@ -1,6 +1,6 @@
 # OpenObserve と syslog-ng による Syslog サーバー
 
-このプロジェクトは、`docker-compose` を使用して `syslog-ng` と `OpenObserve` を連携させた Syslog サーバーを構築するためのものです。`syslog-ng` が受信したログを `OpenObserve` に転送し、ログの集約、検索、可視化を行います。
+このプロジェクトは、`docker compose` を使用して `syslog-ng` と `OpenObserve` を連携させた syslog サーバーを構築するためのものです。`syslog-ng` が受信したログを `OpenObserve` に転送し、ログの集約、検索、可視化を行います。
 
 ## 概要
 
@@ -17,7 +17,7 @@ make up
 
 ## ログの見方
 
-受信したログを表示するには http://localhost:5080 へアクセス、
+受信したログを表示するには http://<サーバーのIPアドレス>:5080 へアクセス、
     ユーザ名 : root@root.root
     パスワード : root
 でログインします。(ユーザー名とパスワードは openobserve/.env で指定)
@@ -46,13 +46,18 @@ make up
 
 *   **公式ドキュメント:** [linuxserver/syslog-ng](https://docs.linuxserver.io/images/docker-syslog-ng/)
 *   **イメージ:** `lscr.io/linuxserver/syslog-ng:latest`
+    *   `syslog-ng_Dockerfile` は試しに書いただけで利用していません
 *   **コンテナ名:** `syslog-ng`
-*   **ポートマッピング:**
-    *   `514:6601/tcp` (Syslog TCP 受信ポート)
-    *   `514:5514/udp` (Syslog UDP 受信ポート)
-    *   コメントアウト: `# - 6514:6514/tcp` (Syslog TLS 用。設定が必要です)
+*   **ポート:**
+    *    `514/tcp,udp`	# 標準的な RFC 5424 形式のログを受ける (改行区切り)
+    *   `2514/tcp`	    # RFC 5424 octet-counted 形式のログを受ける
+    *   `3514/tcp,udp`	# Cisco機器からのログを受ける
+    *   `4514/tcp,udp`	# 古い RFC 3164 形式のログを受ける
+    *   `5514/tcp,udp`	# Fortigate 用
+    *   `6514/tcp,udp`	# JSON 構造化ログを受け付ける
 *   **ボリュームマッピング:**
-    *   `./syslog-ng/conf/`: `/config/` (syslog-ng の設定ファイル用)
+    *   `./syslog-ng/conf/`: `/config/` 設定ファイル
+    *   `./syslog-ng/buffer/`: `/buffer/` ログのバッファリング用
 *   **環境変数:**
     *   `PUID=1000` (プロセスのユーザーID)
     *   `PGID=1000` (プロセスのグループID)
@@ -75,11 +80,20 @@ make up
     Web ブラウザで `http://<サーバーのIPアドレス>:5080` にアクセスします。
 
 4.  **ログの送信:**
-    各機器やアプリケーションの Syslog 設定で、このサーバーの IP アドレスとポート `514` (TCP または UDP) を指定します。
+    各機器やアプリケーションの Syslog 設定で、このサーバーの IP アドレスと以下のポートを指定します。
+
+    | ポート | プロトコル | 用途 |
+    |--------|------------|------|
+    | 514 | TCP/UDP | 標準的な RFC 5424 形式 (推奨) |
+    | 2514 | TCP | RFC 5424 octet-counted 形式 |
+    | 3514 | TCP/UDP | Cisco 機器専用 |
+    | 4514 | TCP/UDP | 古い RFC 3164 形式 |
+    | 5514 | TCP/UDP | Fortigate 専用 |
+    | 6514 | TCP/UDP | JSON 構造化ログ |
 
 5.  **ログの確認:**
     OpenObserve の UI で収集されたログを検索・確認できます。
-    `docker-compose logs syslog-ng` や `docker-compose logs OpenObserve` で各コンテナのログも確認できます。
+    `docker compose logs syslog-ng` や `docker compose logs OpenObserve` で各コンテナのログも確認できます。
 
 6.  **サービスの削除:**
     ```sh
@@ -150,7 +164,7 @@ pip3 install requests tqdm
 1.  **設定の変更:**
     スクリプト内の設定項目を環境に合わせて変更してください。
     ```python
-    API_URL = "http://192.168.0.252:5080"    # OpenObserve の URL
+    API_URL = "http://<サーバーのIPアドレス>:5080"    # OpenObserve の URL
     USERNAME = "root@root.root"              # ユーザー名
     PASSWORD = "root"                        # パスワード
     STREAM_NAME = "syslog_ng"               # ストリーム名
@@ -177,14 +191,175 @@ pip3 install requests tqdm
 *   **大容量対応**: 分割ダウンロードにより、大量のログも処理可能
 *   **CSV形式での出力**: Excel や他のツールで分析しやすい CSV 形式で保存
 *   **フィールド自動検出**: ログの構造変化に対応してフィールドを自動検出
-*   **プログレスバー表示**: `tqdm` ライブラリによる詳細な進捗表示
-    - ダウンロード進捗をパーセンテージで表示
-    - 最後に処理したログのタイムスタンプを表示
-    - バッチ処理時間を表示
-    - ファイルマージ進捗も表示
+*   **進捗表示**: ダウンロード状況をリアルタイムで表示
 
-### 注意事項
+---
+### syslog 設定例
 
-*   大量のログをダウンロードする場合は時間がかかります
-*   OpenObserve の API 制限に注意してください
-*   ダウンロード中にネットワーク接続が切断されないようご注意ください
+
+#### VyOS (514/tcp または 514/udp)
+```conf
+config
+set system syslog local facility all level 'info'
+set system syslog local facility local7 level 'debug'
+set system syslog remote <syslog server> facility all level 'info'
+set system syslog remote <syslog server> facility local7 level 'debug'
+set system syslog remote <syslog server> format include-timezone
+set system syslog remote <syslog server> port 514
+set system syslog remote <syslog server> protocol 'tcp'
+commit ; save ; exit
+```
+
+
+**注意:**
+- `set system syslog local ～` はローカルなので送信に影響ない
+- `format octet-counted` は指定しない (改行区切りで送信)
+- TCP 推奨 (`protocol 'tcp'`)、UDP の場合は `protocol 'udp'`
+
+
+#### Cisco (3514/tcp または 3514/udp)
+```conf
+configure terminal
+
+! タイムゾーン設定
+clock timezone JST 9 0
+
+! タイムスタンプ設定 (ローカル・syslog 送信両方)
+service timestamps debug datetime msec localtime show-timezone year
+service timestamps log datetime msec localtime show-timezone year
+service sequence-numbers
+! ログにホスト名を含める
+logging origin-id hostname
+
+! Syslog サーバー設定 (TCP 推奨)
+logging host <syslog server> transport tcp port 3514 sequence-num-session
+
+! または UDP を使う場合
+! logging host <syslog server> transport udp port 3514
+
+! ログレベル設定
+logging trap informational
+
+end
+write memory
+```
+
+**補足:**
+- コンソールポート (シリアル) にログが表示されるのを抑制したい場合は `no logging console` を追加
+- ローカルバッファにもログを保存したい場合は以下を追加
+  ```
+  logging buffered 64000
+  ```
+
+
+#### NEC IX UNIVERGE (4514/udp)
+```conf
+syslog facility local2
+syslog ip host <syslog server> port 4514
+syslog timestamp datetime
+syslog id hostname
+
+syslog ip enable
+
+! src addr や vrf を指定する場合
+syslog vrf <vrf_NAME> ip source <src addr>
+```
+
+
+#### YAMAHA RTX (514/udp)
+```conf
+syslog format hostname text <syslog に表示されるホスト名>
+syslog format type rfc5424
+syslog host <syslog server>
+syslog facility local6
+syslog info on
+syslog notice  off
+syslog debug off
+
+syslog local address <送信元アドレス>
+```
+
+#### rsyslog
+
+**最小限の設定 (514/tcp - 推奨):**
+```conf
+# /etc/rsyslog.d/50-remote.conf
+*.* @@<syslog server>:514
+```
+
+**UDP で送信する場合 (514/udp):**
+```conf
+*.* @<syslog server>:514
+```
+
+**RFC 3164 形式で送信する場合 (4514):**
+```conf
+*.* @@<syslog server>:4514  # TCP
+*.* @<syslog server>:4514   # UDP
+```
+
+**設定の反映:**
+```sh
+sudo systemctl restart rsyslog
+```
+
+**注意:** `@@` は TCP、`@` は UDP を意味します
+
+#### syslog-ng (514/tcp または 514/udp)
+
+**RFC 5424 形式で送信 (推奨):**
+```conf
+# リモート syslog-ng サーバーへの転送先定義
+destination d_remote_syslog {
+  syslog(
+    "<syslog server>"
+    transport("tcp")        # 推奨: tcp (信頼性重視)
+    port(514)               # 標準 syslog ポート
+    flags(syslog-protocol)  # RFC 5424 形式
+    frac-digits(6)          # マイクロ秒精度
+  );
+};
+
+# ログパイプライン
+log {
+  source(s_local);        # ローカルのログソース
+  destination(d_remote_syslog);
+};
+```
+
+**UDP で送信する場合 (軽量だが欠損の可能性あり):**
+```conf
+destination d_remote_syslog {
+  syslog(
+    "<syslog server>"
+    transport("udp")
+    port(514)
+    flags(syslog-protocol)  # RFC 5424 形式
+  );
+};
+```
+
+**TLS 暗号化通信で送信する場合 (機密性重視):**
+```conf
+destination d_remote_syslog {
+  syslog(
+    "<syslog server>"
+    transport("tls")
+    port(6514)
+    tls(
+      ca-dir("/etc/ssl/certs")
+      # または証明書を明示的に指定
+      # ca-file("/path/to/ca.pem")
+      # cert-file("/path/to/client-cert.pem")
+      # key-file("/path/to/client-key.pem")
+    )
+    flags(syslog-protocol)
+    frac-digits(6)
+  );
+};
+```
+
+**注意:**
+- **514/tcp, 514/udp**: 一般的な RFC 5424/3164 形式として `s_rfc5424` で受信されます
+- **ポート番号を変えることで、受信側の処理を変えることができます** (Cisco パーサー、Fortigate パーサーなど)
+
