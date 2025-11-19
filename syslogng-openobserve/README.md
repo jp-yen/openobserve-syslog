@@ -306,17 +306,24 @@ syslog debug off
 syslog local address <送信元アドレス>
 ```
 
-「<PRI>MSG」という、ファシリティーとシビアリティー、メッセージだけで構成されているため
+「＜PRI＞MSG」という、ファシリティーとシビアリティー、メッセージだけで構成されているため
 この設定では syslog-ng は正しくフォーマットを処理できません。
 RTX は送信先のポート番号を指定できないので
-syslog-ng.conf で IP アドレスで処理を切り替える
-「5. ログ処理のパイプライン定義」の先頭に以下の設定を追加する
+syslog-ng.conf で IP アドレスで処理を切り替える必要があります。
+
+本リポジトリの `syslog-ng/conf/syslog-ng.conf` には既に設定が含まれています。
+`filter f_old_yamaha` の IP アドレスをご自身の環境に合わせて変更してください。
+
 ```
+# syslog-ng/conf/syslog-ng.conf 内の該当箇所
 filter f_old_yamaha {
-  host(^192.168.99.99$) or # RTX のアドレス
+  host(^192.168.99.99$) or # RTX のアドレス (正規表現で指定)
   host(^192.168.99.222$)
 };
+```
 
+**処理内容 (参考):**
+```
 log {
   source(s_rfc5424);
   filter(f_old_yamaha);
