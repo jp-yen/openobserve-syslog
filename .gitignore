@@ -1,13 +1,29 @@
-# hosts ファイル
-docker-coredns/config/hosts
+# ローカル設定ファイル
+# 追跡中のファイルでローカルな変更が必要な場合は、以下を使用します:
+# git update-index --skip-worktree <file>
+# 例: git update-index --skip-worktree docker-coredns/config/hosts
 
-# openobserve のデータディレクトリ
+# 環境変数ファイル
+syslogng-openobserve/.env
+
+# 一時ファイル
+syslogng-openobserve/syslog-gen_*
+
+# Pythonキャッシュ
+__pycache__/
+*.pyc
+
+# OpenObserve
+syslogng-openobserve/openobserve/db/
+# data ディレクトリの中身をすべて無視...
 syslogng-openobserve/openobserve/data/*
 !syslogng-openobserve/openobserve/data/.gitkeep
 
-# syslog-ng の設定関連ファイル
-syslogng-openobserve/syslog-ng/conf/log/*
-!syslogng-openobserve/syslog-ng/conf/log/.gitkeep
+# Syslog-ng
+syslogng-openobserve/syslog-ng/buffer/
 syslogng-openobserve/syslog-ng/conf/syslog-ng.persist
 syslogng-openobserve/syslog-ng/conf/syslog-ng.pid
-
+syslogng-openobserve/syslog-ng/conf/syslog-ng.ctl
+# すべてのログファイルを無視...
+syslogng-openobserve/syslog-ng/conf/log/*
+!syslogng-openobserve/syslog-ng/conf/log/.gitkeep

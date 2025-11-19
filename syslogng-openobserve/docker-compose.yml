@@ -19,6 +19,7 @@ services:
       - TZ=Asia/Tokyo
     env_file:
       - ./openobserve/.env
+    user: '${UID:-1000}:${GID:-1000}'
     restart: unless-stopped
     logging: *logging-def
 
@@ -27,8 +28,8 @@ services:
     image: lscr.io/linuxserver/syslog-ng:latest
     container_name: syslog-ng
     environment:
-      - PUID=1000
-      - PGID=1000
+      - PUID=${UID:-1000}
+      - PGID=${GID:-1000}
       - TZ=Asia/Tokyo
     volumes:
       - ./syslog-ng/conf/:/config/

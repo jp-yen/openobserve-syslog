@@ -9,7 +9,14 @@
 
 ## 起動方法
 
-`docker-compose.yml` があるディレクトリで以下のコマンドを実行します。
+`.env.example` を参考に `.env` ファイルを作成し、コンテナを実行するユーザーのUID/GIDを指定してください。
+
+```sh
+cp .env.example .env
+# 必要に応じて .env ファイル内のUIDとGIDを編集します
+```
+
+その後、`docker-compose.yml` があるディレクトリで以下のコマンドを実行します。
 
 ```sh
 make up
@@ -198,6 +205,7 @@ pip3 install requests tqdm
 
 
 #### VyOS (514/tcp または 514/udp)
+設定例
 ```conf
 config
 set system syslog local facility all level 'info'
@@ -218,6 +226,7 @@ commit ; save ; exit
 
 
 #### Cisco (3514/tcp または 3514/udp)
+設定例
 ```conf
 configure terminal
 
@@ -253,6 +262,7 @@ write memory
 
 
 #### NEC IX UNIVERGE (4514/udp)
+設定例
 ```conf
 syslog facility local2
 syslog ip host <syslog server> port 4514
@@ -266,7 +276,12 @@ syslog vrf <vrf_NAME> ip source <src addr>
 ```
 
 
-#### YAMAHA RTX (514/udp)
+#### YAMAHA RTX 新 (514/udp)
+RTX1300 は Rev.23.00.14 以降  
+RTX1220 は Rev.15.04.07 以降  
+RTX1210 は Rev.14.01.42 以降  
+RTX830 は Rev.15.02.31 以降
+設定例
 ```conf
 syslog format hostname text <syslog に表示されるホスト名>
 syslog format type rfc5424
@@ -277,6 +292,42 @@ syslog notice  off
 syslog debug off
 
 syslog local address <送信元アドレス>
+```
+
+#### YAMAHA RTX 旧 (514/udp)
+設定例
+```conf
+syslog host <syslog server>
+syslog facility local6
+syslog info on
+syslog notice  off
+syslog debug off
+
+syslog local address <送信元アドレス>
+```
+
+「<PRI>MSG」という、ファシリティーとシビアリティー、メッセージだけで構成されているため
+この設定では syslog-ng は正しくフォーマットを処理できません。
+RTX は送信先のポート番号を指定できないので
+syslog-ng.conf で IP アドレスで処理を切り替える
+「5. ログ処理のパイプライン定義」の先頭に以下の設定を追加する
+```
+filter f_old_yamaha {
+  host(^192.168.99.99$) or # RTX のアドレス
+  host(^192.168.99.222$)
+};
+
+log {
+  source(s_rfc5424);
+  filter(f_old_yamaha);
+  # RTXのログはPROGRAMとMESSAGEに分割されてしまうため、ここで結合する
+  rewrite {
+    set("${PROGRAM} ${MESSAGE}", value("MESSAGE"));
+    unset(value("PROGRAM"));
+  };
+  destination(d_openobserve);
+  flags(final);
+};
 ```
 
 #### rsyslog
