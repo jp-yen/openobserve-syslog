@@ -1,12 +1,23 @@
 # vim: set tabstop=4 fileencoding=utf-8 fileformat=unix filetype=make :# モードライン
 SHELL = /bin/bash
 
+# Load .env file if it exists
+ifneq (,$(wildcard ./.env))
+    include .env
+    export
+endif
+
+# Default values if not in .env
+UID ?= 1000
+GID ?= 1000
+
 help:
 	@echo "  Usage:"
 	@echo ""
 	@echo "    make up            (-) 起動 - 起動時は何もしない"
 	@echo "    make down          (-) 停止"
 	@echo "    make restart       (-) 停止して起動"
+	@echo "    make reload        (-) 設定リロード (コンテナ再作成なし)"
 	@echo "    make ps            (-) 起動状況を確認"
 	@echo "    make clean         (*) データ、ログの削除"
 	@echo "    make update-image  (-) イメージを更新して再起動 (ログは保持)"
@@ -24,6 +35,11 @@ up: NO_ROOT
 restart: NO_ROOT
 	@docker compose down && docker compose up -d
 
+reload: NO_ROOT
+	@echo "Restarting syslog-ng container..."
+	@docker compose restart syslog-ng
+	@echo "Done."
+
 down:
 	@docker compose down
 
@@ -39,8 +55,8 @@ update-image: NO_ROOT
 clean: NEED_ROOT down
 	@find ./syslog-ng/conf/   -mindepth 1 \! -name 'syslog-ng.conf' -print -delete || true
 	@find ./openobserve/data/ -mindepth 1 \! -name '.gitkeep'       -print -delete || true
-	@install -d -m 777 -o 1000 -g 1000 ./syslog-ng/conf/log/
-	@install -d -m 777 -o 0    -g 0    ./openobserve/data/
+	@install -d -m 777 -o $(UID) -g $(GID) ./syslog-ng/conf/log/
+	@install -d -m 777 -o $(UID) -g $(GID) ./openobserve/data/
 
 # syslog-ng の設定ファイルをチェックする
 conf_check: NO_ROOT
@@ -95,4 +111,4 @@ NEED_ROOT:
 	fi
 
 # ファイルがあっても実行する疑似ターゲット
-.PHONY: help up restart down ps clean update-image conf_check syslog_s flo_syslog flood_syslog NO_ROOT NEED_ROOT
+.PHONY: help up restart reload down ps clean update-image conf_check syslog_s flo_syslog flood_syslog NO_ROOT NEED_ROOT
