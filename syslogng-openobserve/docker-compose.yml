@@ -36,21 +36,21 @@ services:
       - ./syslog-ng/conf/:/config/
       - ./syslog-ng/buffer/:/buffer/
     ports:
-      - 514:514/tcp    # 514/tcp RFC 5424 形式 改行区切り
-      - 514:514/udp    # 514/udp RFC 5424 形式
-      - 2514:2514/tcp  # 2514/tcp RFC 5424 形式 octet-counted 用
-      - 3514:3514/tcp  # 3514/tcp Cisco IOS 用
-      - 3514:3514/udp  # 3514/udp Cisco IOS 用
-      - 4514:4514/tcp  # 4514/tcp RFC 3164 形式 改行区切り
-      - 4514:4514/udp  # 4514/udp RFC 3164 形式
-      - 5514:5514/tcp  # 5514/tcp Fortigate 用
-      - 5514:5514/udp  # 5514/udp Fortigate 用
-      - 5515:5515/tcp  # 5515/tcp Palo Alto 用
-      - 5515:5515/udp  # 5515/udp Palo Alto 用
-      - 6514:6514/tcp  # 6514/tcp json 構造化済みログ用 fluent-bit から受信
-      - 7514:7514/tcp  # 7514/tcp AlaxalA 用
-      - 7514:7514/udp  # 7514/udp AlaxalA 用
-      - 999:999/tcp    # 999/tcp CEF
+      - 514:514/tcp # 514/tcp RFC 5424 形式 改行区切り
+      - 514:514/udp # 514/udp RFC 5424 形式
+      - 2514:2514/tcp # 2514/tcp RFC 5424 形式 octet-counted 用
+      - 3514:3514/tcp # 3514/tcp Cisco IOS 用
+      - 3514:3514/udp # 3514/udp Cisco IOS 用
+      - 4514:4514/tcp # 4514/tcp RFC 3164 形式 改行区切り
+      - 4514:4514/udp # 4514/udp RFC 3164 形式
+      - 5514:5514/tcp # 5514/tcp Fortigate 用
+      - 5514:5514/udp # 5514/udp Fortigate 用
+      - 5515:5515/tcp # 5515/tcp Palo Alto 用
+      - 5515:5515/udp # 5515/udp Palo Alto 用
+      - 6514:6514/tcp # 6514/tcp RFC 5424 形式 構造化ログ用 (fluent-bit等)
+      - 7514:7514/tcp # 7514/tcp AlaxalA 用
+      - 7514:7514/udp # 7514/udp AlaxalA 用
+      - 999:999/tcp # 999/tcp CEF
       # - 6514:6514/tcp  # syslog TLS はきちんと設定していないので使えない
     restart: unless-stopped
     logging: *logging-def
