@@ -31,7 +31,7 @@ services:
       - PUID=${UID:-1000}
       - PGID=${GID:-1000}
       - TZ=${TZ:-Asia/Tokyo}
-      - SYSLOGNG_OPTS=-d
+      # - SYSLOGNG_OPTS=-d # デバッグ時に有効化
     volumes:
       - ./syslog-ng/conf/:/config/
       - ./syslog-ng/buffer/:/buffer/
