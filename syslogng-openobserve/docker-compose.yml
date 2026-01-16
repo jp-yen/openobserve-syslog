@@ -39,8 +39,8 @@ services:
       - 514:514/tcp # 514/tcp RFC 5424 形式 改行区切り
       - 514:514/udp # 514/udp RFC 5424 形式
       - 2514:2514/tcp # 2514/tcp RFC 5424 形式 octet-counted 用
-      - 3514:3514/tcp # 3514/tcp Cisco IOS 用
-      - 3514:3514/udp # 3514/udp Cisco IOS 用
+      - 3514:3514/tcp # 3514/tcp Cisco 用 (IOS/IOS-XE等)
+      - 3514:3514/udp # 3514/udp Cisco 用 (IOS/IOS-XE等)
       - 4514:4514/tcp # 4514/tcp RFC 3164 形式 改行区切り
       - 4514:4514/udp # 4514/udp RFC 3164 形式
       - 5514:5514/tcp # 5514/tcp Fortigate 用
