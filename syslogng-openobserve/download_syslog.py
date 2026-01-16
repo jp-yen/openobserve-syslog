@@ -12,19 +12,19 @@ from tqdm import tqdm
 # OpenObserve から指定範囲のログをダウンロードする
 
 # === 設定項目 ===
-API_URL = "http://192.168.0.252:5080"
+API_URL = "http://127.0.0.1:5080"
 USERNAME = "root@root.root"
 PASSWORD = "root"
 STREAM_NAME = "syslog_ng"
 ORG_ID = "default"
-CHUNK_SIZE = 100000
+CHUNK_SIZE = 10000
 
 # ログ取得範囲（日時指定）
-START_TIME_STR = "2025-05-01 00:00:00"
-END_TIME_STR   = "2025-06-16 23:59:59"
+START_TIME_STR = "2026-01-10 00:00:00"
+END_TIME_STR   = "2026-01-17 23:59:59"
 # ===============
 
-def download_logs(api_url, username, password, stream_name, org_id="default", chunk_size=100000):
+def download_logs(api_url, username, password, stream_name, org_id="default", chunk_size=10000):
     credentials = f"{username}:{password}"
     encoded_credentials = base64.b64encode(credentials.encode()).decode()
 
@@ -43,7 +43,7 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
     count_url = f"{api_url}/api/{org_id}/_search"
     count_payload = {
         "query": {
-            "sql": f"SELECT COUNT(*) as total FROM {stream_name} WHERE _timestamp >= {start_time} AND _timestamp <= {end_time}",
+            "sql": f"SELECT COUNT(*) as total FROM \"{stream_name}\" WHERE _timestamp >= {start_time} AND _timestamp <= {end_time}",
             "start_time": start_time,
             "end_time": end_time
         },
@@ -55,7 +55,13 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
         print(f"Failed to fetch total count: {response.status_code}, {response.text}")
         return
 
-    total_logs = response.json().get("hits", [{}])[0].get("total", 0)
+    json_response = response.json()
+    hits = json_response.get("hits", [])
+    if hits and len(hits) > 0:
+        total_logs = hits[0].get("total", 0)
+    else:
+        total_logs = 0
+        print(f"Warning: No hits found in count query. Response: {json_response}")
     print(f"Total logs to fetch: {total_logs}")
 
     last_timestamp = start_time
@@ -81,7 +87,7 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
         url = f"{api_url}/api/{org_id}/_search"
         payload = {
             "query": {
-                "sql": f"SELECT * FROM {stream_name} WHERE _timestamp > {last_timestamp} AND _timestamp <= {end_time} ORDER BY _timestamp ASC",
+                "sql": f"SELECT * FROM \"{stream_name}\" WHERE _timestamp > {last_timestamp} AND _timestamp <= {end_time} ORDER BY _timestamp ASC",
                 "start_time": start_time,
                 "end_time": end_time,
                 "size": chunk_size
@@ -89,6 +95,7 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
             "search_type": "ui"
         }
 
+        # print(f"DEBUG: Querying {url} with start={last_timestamp}")
         response = requests.post(url, json=payload, headers=headers)
         if response.status_code != 200:
             print(f"Failed to fetch logs: {response.status_code}, {response.text}")
@@ -96,7 +103,20 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
 
         logs = response.json().get("hits", [])
         if not logs:
-            break
+            # ログが0件だが、まだ予定総数に達していない場合
+            if total_fetched < total_logs:
+                # チャンクサイズが大きすぎて空が返ってきた可能性があるため、縮小してリトライ
+                if chunk_size > 10000:
+                    print(f"Warning: Empty hits received with chunk_size={chunk_size}. Reducing to 10000 and retrying...")
+                    chunk_size = 10000
+                    continue
+                else:
+                    # 既に最小サイズなら本当に終了かエラー
+                    print(f"Warning: No more logs found (fetched {total_fetched}/{total_logs}). Stopping.")
+                    break
+            else:
+                # 予定総数に達していれば正常終了
+                break
 
         # 新しいフィールドがあるか確認、あったらファイルを分割
         new_fields = set()
@@ -182,7 +202,7 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
         actual_total_chunks = (total_logs + chunk_size - 1) // chunk_size
         
         print(f"Downloading logs: {final_progress_pct:3.0f}%|{final_bar}| {total_fetched:,}/{total_fetched:,} logs")
-        print(f" step {actual_total_chunks}/{actual_total_chunks}: Download completed!")
+        print(f" step {actual_total_chunks}/{actual_total_chunks}: Download stopped (Incomplete: {total_fetched}/{total_logs})")
         print()
 
     # プログレスバーを100%で完了させる

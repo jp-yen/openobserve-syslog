@@ -16,8 +16,8 @@ help:
 	@echo ""
 	@echo "    make up            (-) 起動 - 起動時は何もしない"
 	@echo "    make down          (-) 停止"
-	@echo "    make restart       (-) 停止して起動"
-	@echo "    make reload        (-) 設定リロード (コンテナ再作成なし)"
+	@echo "    make restart       (-) 停止して起動 (コンテナを再作成する)"
+	@echo "    make reload        (-) syslog-ng の設定リロード (コンテナ再作成なし)"
 	@echo "    make ps            (-) 起動状況を確認"
 	@echo "    make clean         (*) データ、ログの削除"
 	@echo "    make update-image  (-) イメージを更新して再起動 (ログは保持)"
@@ -51,7 +51,6 @@ update-image: NO_ROOT
 	@docker compose down --rmi all
 	@docker compose up -d
 
-# 実行時の user/uid は以下のようなコマンドで確認
 clean: NEED_ROOT down
 	@find ./syslog-ng/conf/   -mindepth 1 \! -name 'syslog-ng.conf' -print -delete || true
 	@find ./openobserve/data/ -mindepth 1 \! -name '.gitkeep'       -print -delete || true

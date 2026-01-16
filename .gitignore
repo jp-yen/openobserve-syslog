@@ -27,3 +27,9 @@ syslogng-openobserve/syslog-ng/conf/syslog-ng.ctl
 # すべてのログファイルを無視...
 syslogng-openobserve/syslog-ng/conf/log/*
 !syslogng-openobserve/syslog-ng/conf/log/.gitkeep
+
+# Temporary files
+syslogng-openobserve/*.csv
+
+# CoreDNS build artifacts
+docker-coredns/coredns/
