@@ -47,7 +47,7 @@ services:
       - 5514:5514/udp # 5514/udp Fortigate 用
       - 5515:5515/tcp # 5515/tcp Palo Alto 用
       - 5515:5515/udp # 5515/udp Palo Alto 用
-      - 6514:6514/tcp # 6514/tcp RFC 5424 形式 構造化ログ用 (fluent-bit等)
+      - 6514:6514/tcp # 6514/tcp RFC 5424 形式 構造化ログ用
       - 7514:7514/tcp # 7514/tcp AlaxalA 用
       - 7514:7514/udp # 7514/udp AlaxalA 用
       - 999:999/tcp # 999/tcp CEF
