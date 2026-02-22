@@ -1,0 +1,115 @@
+# docker buildx build . -t 1yen00docker/syslog-ng:1yen00_v4.10.2 --file syslog-ng_Dockerfile
+# docker push 1yen00docker/syslog-ng:1yen00_v4.10.2
+# Stage 1: Build syslog-ng and busybox
+FROM debian:stable-slim AS builder
+ARG SYSLOG_NG_VERSION=4.10.2
+
+# Set APT proxy
+ENV http_proxy=http://192.168.0.251:3128
+ENV https_proxy=http://192.168.0.251:3128
+
+# Replace sources.list
+RUN echo "deb http://cdn-fastly.deb.debian.org/debian bookworm main contrib non-free\n\
+    deb http://cdn-fastly.deb.debian.org/debian bookworm-backports main contrib non-free\n\
+    deb http://cdn-fastly.deb.debian.org/debian bookworm-updates main contrib non-free\n\
+    deb http://cdn-fastly.deb.debian.org/debian-security bookworm-security main contrib non-free" \
+    > /etc/apt/sources.list
+
+RUN apt-get update && apt-get install -y \
+    build-essential libglib2.0-dev libevent-dev libjson-glib-dev libjson-c-dev \
+    libpcre2-dev libssl-dev libsystemd-dev libcap-dev libcap2-bin libdbi-dev \
+    libdbd-mariadb-perl libdbd-pgsql libsqlite3-dev libmongo-client-dev \
+    liblua5.4-dev lua5.4 python3 python3-dev python3-pip python3.13-venv \
+    libperl-dev perl libtap-harness-archive-perl libterm-readline-gnu-perl \
+    bison flex wget ca-certificates pkg-config autoconf libtool git \
+    libsnmp-dev libnet-snmp-perl \
+    libgeoip-dev \
+    librabbitmq-dev \
+    libnet-dev \
+    libcriterion-dev \
+    libcurl4-openssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Build syslog-ng
+WORKDIR /src
+RUN wget https://github.com/syslog-ng/syslog-ng/releases/download/syslog-ng-${SYSLOG_NG_VERSION}/syslog-ng-${SYSLOG_NG_VERSION}.tar.gz && \
+    tar xvf syslog-ng-${SYSLOG_NG_VERSION}.tar.gz && cd syslog-ng-${SYSLOG_NG_VERSION} && \
+    ./configure \
+    --enable-lua \
+    --enable-python \
+    --enable-perl \
+    --enable-snmp-dest \
+    --enable-linux-caps \
+    --enable-amq \
+    --enable-debug \
+    --enable-dynamic-linking \
+    --enable-geoip \
+    --enable-ipv6 \
+    --enable-ssl \
+    --enable-http \
+    --with-openssl \
+    && make -j$(nproc) && make install
+
+# Build su-exec for privilege dropping (single C file, statically linked)
+RUN wget -O /tmp/su-exec.c https://raw.githubusercontent.com/ncopa/su-exec/master/su-exec.c && \
+    gcc -static -o /usr/local/bin/su-exec /tmp/su-exec.c
+
+# Create entrypoint script (use full paths for distroless)
+COPY --chmod=755 <<'EOF' /entrypoint.sh
+#!/bin/sh
+PUID=${PUID:-1000}
+PGID=${PGID:-1000}
+/tools/busybox chown -R "$PUID:$PGID" /usr/local/var
+exec /tools/su-exec "$PUID:$PGID" /usr/local/sbin/syslog-ng "$@"
+EOF
+
+# Set capability for binding to low ports
+RUN setcap cap_net_bind_service=+ep /usr/local/sbin/syslog-ng
+
+# Build busybox statically
+WORKDIR /busybox
+RUN wget https://busybox.net/downloads/busybox-1.37.0.tar.bz2 && \
+    tar xjf busybox-1.37.0.tar.bz2 && \
+    cd busybox-1.37.0 && \
+    make defconfig && \
+    sed -i 's/.*CONFIG_STATIC.*/CONFIG_STATIC=y/' .config && \
+    sed -i 's/.*CONFIG_TC=.*/CONFIG_TC=n/' .config && \
+    yes "" | make oldconfig && \
+    make -j$(nproc) && \
+    cp busybox /busybox/busybox-static
+
+# Stage 2: Runtime image using distroless
+FROM gcr.io/distroless/static-debian12
+
+# Declare config volume
+VOLUME ["/config"]
+
+# Copy busybox, su-exec, and entrypoint script
+COPY --from=builder /busybox/busybox-static /tools/busybox
+COPY --from=builder /usr/local/bin/su-exec /tools/su-exec
+COPY --from=builder /entrypoint.sh /entrypoint.sh
+
+# Copy syslog-ng
+COPY --from=builder /usr/local/sbin/syslog-ng /usr/local/sbin/syslog-ng
+COPY --from=builder /usr/local/lib/ /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/local/lib/syslog-ng /usr/local/lib/syslog-ng
+COPY --from=builder /usr/local/etc /usr/local/etc
+COPY --from=builder /usr/local/var /usr/local/var
+COPY --from=builder /usr/local/share/syslog-ng /usr/local/share/syslog-ng
+COPY --from=builder /usr/lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu
+COPY --from=builder /lib/x86_64-linux-gnu /lib/x86_64-linux-gnu
+COPY --from=builder /lib64 /lib64
+COPY --from=builder /usr/lib/python3 /usr/lib/python3
+COPY --from=builder /usr/lib/python3.13 /usr/lib/python3.13
+COPY --from=builder /usr/share/perl5 /usr/share/perl5
+
+# Set PATH to include busybox and su-exec
+ENV PATH="$PATH:/tools"
+# Add /usr/local/lib for syslog-ng shared libraries
+ENV LD_LIBRARY_PATH="/usr/local/lib:/usr/lib/x86_64-linux-gnu"
+# Add python path
+ENV PYTHONPATH="/usr/lib/python3.13:/usr/lib/python3/dist-packages:/usr/local/lib/python3.13/dist-packages"
+
+ENTRYPOINT ["/tools/busybox", "sh", "/entrypoint.sh", "-F", "--no-caps"]
+CMD ["-f", "/config/syslog-ng.conf"]
+

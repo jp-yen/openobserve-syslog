@@ -62,11 +62,11 @@ conf_check: NO_ROOT
 	@echo "=================================="
 	@echo "==== syslog-ng config check ======"
 	@echo "=================================="
-	@docker run -it --rm --name syslog-ng-conf_check \
+	@docker run --rm --name syslog-ng-conf_check \
 	  -v ./syslog-ng/conf:/config \
-	  lscr.io/linuxserver/syslog-ng \
-	  /usr/sbin/syslog-ng -s -f /config/syslog-ng.conf |\
-	  grep -A 1000 ls.io-init || true
+	  --entrypoint /usr/local/sbin/syslog-ng \
+	  1yen00docker/syslog-ng:1yen00_v4.10.2 \
+	  -s -f /config/syslog-ng.conf || true
 	@echo ""
 
 show_version: NO_ROOT

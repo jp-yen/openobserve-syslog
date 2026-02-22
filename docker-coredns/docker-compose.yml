@@ -23,7 +23,7 @@ services:
     ## バージョンの確認
     ## go list -m all | grep mapstructure
 
-    # setenv CFLAGS "-O3 -pipe -march=native -mtune=native" ... 多分効いてない...orz
+    # make GOAMD64=v1 BUILDOPTS="-ldflags='-s -w'"
     # make
     # echo 'VOLUME ["/etc/coredns"]'                >> Dockerfile
     # echo 'CMD ["-conf", "/etc/coredns/Corefile"]' >> Dockerfile
@@ -36,7 +36,7 @@ services:
     #
     
 
-    image: 1yen00docker/coredns:1yen00_v1.13.1
+    image: 1yen00docker/coredns:1yen00_v1.14.1
     container_name: dns
     restart: always
     ports:
