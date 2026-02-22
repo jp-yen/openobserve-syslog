@@ -73,15 +73,16 @@ show_version: NO_ROOT
 	@echo "=================================="
 	@echo "==== syslog-ng version ==========="
 	@echo "=================================="
-	@docker run -it --rm --name syslog-ng-version \
-	  lscr.io/linuxserver/syslog-ng \
-	  /usr/sbin/syslog-ng --version |\
-	  grep -A 1000 ls.io-init || true
+	@docker compose exec syslog-ng \
+	  /usr/local/sbin/syslog-ng --version 2>/dev/null || \
+	  docker run --rm --entrypoint /usr/local/sbin/syslog-ng \
+	  1yen00docker/syslog-ng:1yen00_v4.10.2 --version || true
 	@echo "=================================="
 	@echo "==== OpenObserve version ========="
 	@echo "=================================="
-	@docker run -it --rm --name openobserve_version \
-	  public.ecr.aws/zinclabs/openobserve:latest \
+	@docker compose exec OpenObserve \
+	  /openobserve --version 2>/dev/null || \
+	  docker run --rm public.ecr.aws/zinclabs/openobserve:v0.60.0 \
 	  /openobserve --version || true
 
 
