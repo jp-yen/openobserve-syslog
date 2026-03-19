@@ -42,16 +42,16 @@
 CoreDNS のカスタム Docker イメージをビルドする手順です。
 
 1.  **Go言語のインストール:**
-    Go言語がインストールされていない場合は、[公式ドキュメント](https://go.dev/doc/install)に従ってインストールしてください。
+    ビルド中に自動的にダウンロードします。
 
 2.  **CoreDNS ソースコードのクローン:**
     ```sh
     git clone https://github.com/coredns/coredns.git
     cd coredns
     ```
-    - 特定のブランチ,タグ (例: v1.12.2) をクローンする場合は以下のように指定する
+    - 特定のブランチ,タグ (例: v1.14.2) をクローンする場合は以下のように指定する
         ```sh
-        git clone https://github.com/coredns/coredns.git -b v1.12.2
+        git clone https://github.com/coredns/coredns.git -b v1.14.2
         ```
 
 3.  **ビルドオプションの設定 (任意):**
@@ -97,16 +97,36 @@ CoreDNS のカスタム Docker イメージをビルドする手順です。
     ```
 
 3.  **Docker イメージのビルド:**
-    Git のコミットハッシュを取得し、それを使って Docker イメージにタグを付けます。
+    Docker イメージにタグを付けます。
     ```sh
-    HASH=$(git log | awk 'NR==1{print $2}')
-    docker buildx build . -t 1yen00docker/coredns:$HASH -t 1yen00docker/coredns:1yen00_v1.12.2
+    docker buildx build . -t 1yen00docker/coredns:1yen00_v1.14.2
     ```
 
 4.  **Docker イメージのプッシュ (任意):**
     ビルドしたイメージを Docker Hub にプッシュします。
     ```sh
-    # docker push 1yen00docker/coredns:$HASH
-    docker push 1yen00docker/coredns:1yen00_v1.12.2
+    docker push 1yen00docker/coredns:1yen00_v1.14.2
+    ```
+
+## Go のバージョンを指定してビルドする
+    `./.go-version` にバージョンが書かれているがそれとは違うバージョンを使いたい場合。
+    ```
+    make GOTOOLCHAIN=go1.26.1
+    ```
+
+## Go のモジュールを差し替えて (バージョンを上げて) ビルドする
+    例えば grpc のバージョンを上げてみる。
+    CoreDNS をビルドするときに Go 言語も拾ってくるため、一度ビルドしてからモジュールのバージョンを上げ、再度ビルドする。
+
+    ```
+    make GOTOOLCHAIN=go1.26.1
+    go get google.golang.org/grpc@latest    # grpc の最新バージョンに入れ替える
+    go get google.golang.org/grpc@v1.79.3   # バージョンを指定して入れ替える
+
+    go mod tidy                             # 依存関係の修正
+
+    go list -m google.golang.org/grpc       # バージョンの確認
+    
+    make GOTOOLCHAIN=go1.26.1
     ```
 

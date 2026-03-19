@@ -36,7 +36,7 @@ services:
     #
     
 
-    image: 1yen00docker/coredns:1yen00_v1.14.1
+    image: 1yen00docker/coredns:1yen00_v1.14.2
     container_name: dns
     restart: always
     ports:
