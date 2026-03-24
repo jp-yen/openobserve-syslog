@@ -1,14 +1,16 @@
 # 概要
+
 syslog-ng コンテナです。
 セキュリティ向上のため、デフォルトで非 root ユーザーとして動作します。
 `PUID`/`PGID` を指定することで、保存されるログファイルの所有権をホスト側のユーザーに合わせることができ、管理が容易になります。
 
 ## ビルド方法
+
 以下のコマンドを実行してください。
 
 ```bash
 cd build-container/syslog-ng
-docker build -t syslog-ng:latest .
+docker build -t 1yen00docker/syslog-ng:1yen00_v4.11.0 .
 ```
 
 ### ビルド (docker buildx を使用する場合)
@@ -17,8 +19,9 @@ docker build -t syslog-ng:latest .
 
 **1. 高速ビルド (現在のアーキテクチャ向け)**
 キャッシュが強力に効くため、再ビルドが高速になります。
+
 ```bash
-docker buildx build -t syslog-ng:latest --load .
+docker buildx build -t 1yen00docker/syslog-ng:1yen00_v4.11.0 --load .
 ```
 
 **2. マルチアーキテクチャビルド (AMD64 & ARM64)**
@@ -46,6 +49,7 @@ docker buildx build \
   -t syslog-ng-dev:"${VERSION}" \
   --load .
 ```
+
 （GitHub のリリースタグ `syslog-ng-x.y.z` に対応します）
 ビルド時は、生成されるイメージにもバージョン情報やGitコミットハッシュをタグ付けすることを推奨します。
 
@@ -106,8 +110,6 @@ docker run -d \
 | `config/` | `/config` | 永続データ (`.persist`) の保存場所 | **必須** |
 | `syslog-ng.conf` | `/config/syslog-ng.conf` | 設定ファイル (Read-Only 推奨) | 任意 |
 
-
-
 ### タイムゾーン (TZ)
 
 コンテナ内の時刻をローカルタイム（ログのタイムスタンプ等）に合わせる場合、環境変数 `TZ` を指定します。
@@ -115,15 +117,16 @@ docker run -d \
 
 これにより、`syslog-ng` はログのタイムスタンプを正しく（例: `+09:00`）記録します。
 
-
-
 ### デフォルト起動オプションとカスタマイズ
 
 #### デフォルトコマンド
+
 コンテナは以下のオプションで `syslog-ng` を起動します：
+
 ```bash
 /usr/local/sbin/syslog-ng -F -f <CONFIG_FILE> -R /config/syslog-ng.persist --stderr
 ```
+
 (各オプション: `-F` フォアグラウンド, `-f` 設定ファイル, `-R` 永続ファイル, `--stderr` 標準エラー出力)
 
 #### 起動コマンドへのオプション追加 (Advanced)
@@ -142,29 +145,35 @@ docker run -d \
 `/usr/local/sbin/syslog-ng -F -f <CONFIG_FILE> -R /config/syslog-ng.persist --stderr -d`
 
 #### 大量接続時の注意 (ulimit)
+
 多数のクライアントから接続を受け付ける場合、デフォルトの上限 (1024) では不足する可能性があります。
 その場合は `--ulimit nofile=10000:10000` を指定して起動してください。
 
 ## 運用 Tips
 
 ### 設定のリロード
+
 コンテナを再起動せずに設定ファイル (`syslog-ng.conf`) の変更を反映させるには、以下のコマンドを実行します。
+
 ```bash
 docker exec syslog-ng-dev syslog-ng-ctl reload
 ```
+
 （または `docker kill -s HUP syslog-ng-dev` でも可能です）
 
 ### 統計情報の確認
+
 現在のログ受信数やドロップ数などの統計情報を確認するには、以下のコマンドを実行します。
+
 ```bash
 docker exec syslog-ng-dev syslog-ng-ctl stats
 ```
 
 # 送信試験 TCP, UDP で100件づつ送信する
+
 ```bash
 for i in $(seq 1 100); do
   logger -n 127.0.0.1 -T -P 666 --octet-count "alpha beta TCP #$i"
   logger -n 127.0.0.1 -P 666 "alpha beta UDP #$i"
 done
 ```
-

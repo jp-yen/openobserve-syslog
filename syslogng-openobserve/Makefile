@@ -33,6 +33,8 @@ up: NO_ROOT
 	@docker compose up -d
 
 restart: NO_ROOT
+	@echo "Pulling new images..."
+	@docker compose pull
 	@docker compose down && docker compose up -d
 
 reload: NO_ROOT
@@ -47,7 +49,7 @@ ps: NO_ROOT
 	@docker compose ps
 
 update-image: NO_ROOT
-	@echo "Performing version upgrade: stopping containers, removing old images, and then starting new containers..."
+	@echo "バージョンの更新を実行します: コンテナを停止し、現在のローカルイメージをすべて削除後、新しく取得・起動します..."
 	@docker compose down --rmi all
 	@docker compose up -d
 
@@ -65,7 +67,7 @@ conf_check: NO_ROOT
 	@docker run --rm --name syslog-ng-conf_check \
 	  -v ./syslog-ng/conf:/config \
 	  --entrypoint /usr/local/sbin/syslog-ng \
-	  1yen00docker/syslog-ng:1yen00_v4.10.2 \
+	  1yen00docker/syslog-ng:1yen00_v4.11.0 \
 	  -s -f /config/syslog-ng.conf || true
 	@echo ""
 
@@ -76,13 +78,13 @@ show_version: NO_ROOT
 	@docker compose exec syslog-ng \
 	  /usr/local/sbin/syslog-ng --version 2>/dev/null || \
 	  docker run --rm --entrypoint /usr/local/sbin/syslog-ng \
-	  1yen00docker/syslog-ng:1yen00_v4.10.2 --version || true
+	  1yen00docker/syslog-ng:1yen00_v4.11.0 --version || true
 	@echo "=================================="
 	@echo "==== OpenObserve version ========="
 	@echo "=================================="
 	@docker compose exec OpenObserve \
 	  /openobserve --version 2>/dev/null || \
-	  docker run --rm public.ecr.aws/zinclabs/openobserve:v0.60.0 \
+	  docker run --rm public.ecr.aws/zinclabs/openobserve:v0.70.0 \
 	  /openobserve --version || true
 
 

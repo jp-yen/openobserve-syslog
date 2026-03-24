@@ -8,9 +8,10 @@ x-logging-def: &logging-def
 
 services:
   # https://openobserve.ai/docs/guide/quickstart/#self-hosted-installation
+  # https://gallery.ecr.aws/zinclabs/openobserve
   OpenObserve:
     # simd は AVX512 に対応していないと (Xeon とか) 動作しない
-    image: public.ecr.aws/zinclabs/openobserve:v0.60.0
+    image: public.ecr.aws/zinclabs/openobserve:v0.70.0
     container_name: OpenObserve
     ports:
       - 5080:5080
@@ -27,7 +28,7 @@ services:
   # https://hub.docker.com/r/linuxserver/syslog-ng
   # https://docs.linuxserver.io/images/docker-syslog-ng/
   syslog-ng:
-    image: 1yen00docker/syslog-ng:1yen00_v4.10.2
+    image: 1yen00docker/syslog-ng:1yen00_v4.11.0
     container_name: syslog-ng
     environment:
       - PUID=${UID:-1000}

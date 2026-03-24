@@ -1,8 +1,8 @@
 # syslog-ng
 # IPv6 / JSON / HTTP / Python / Lua / Linux Caps / SNMP / SMTP / SQL［MySQL & PostgreSQL］を有効化
 
-ARG DEBIAN_RELEASE=bookworm
-ARG SYSLOG_NG_version=4.10.2
+ARG DEBIAN_RELEASE=13.4
+ARG SYSLOG_NG_version=4.11.0
 
 # ---- ビルドステージ ---------------------------------------------------------
 FROM debian:${DEBIAN_RELEASE} AS builder
@@ -60,7 +60,7 @@ RUN apt-get update && apt-get install -y \
   ca-certificates \
   gosu \
   libglib2.0-0 libevent-2.1-7 libcurl4 \
-  libjson-c5 libsystemd0 liblua5.4-0 python3-minimal libpython3.11 \
+  libjson-c5 libsystemd0 liblua5.4-0 python3-minimal libpython3.13 \
   libsnmp40 libesmtp6 \
   libdbi1 libdbd-mysql libdbd-pgsql \
   libpcre2-8-0 \
