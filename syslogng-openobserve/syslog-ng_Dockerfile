@@ -15,7 +15,10 @@ RUN echo "deb http://cdn-fastly.deb.debian.org/debian bookworm main contrib non-
     deb http://cdn-fastly.deb.debian.org/debian-security bookworm-security main contrib non-free" \
     > /etc/apt/sources.list
 
-RUN apt-get update && apt-get install -y \
+RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    apt-get update && apt-get install -y \
     build-essential libglib2.0-dev libevent-dev libjson-glib-dev libjson-c-dev \
     libpcre2-dev libssl-dev libsystemd-dev libcap-dev libcap2-bin libdbi-dev \
     libdbd-mariadb-perl libdbd-pgsql libsqlite3-dev libmongo-client-dev \
@@ -27,13 +30,18 @@ RUN apt-get update && apt-get install -y \
     librabbitmq-dev \
     libnet-dev \
     libcriterion-dev \
-    libcurl4-openssl-dev \
-    && rm -rf /var/lib/apt/lists/*
+    libcurl4-openssl-dev
+
+# Download syslog-ng source
+WORKDIR /src
+RUN --mount=type=cache,target=/src/cache \
+    if [ ! -f /src/cache/syslog-ng-${SYSLOG_NG_VERSION}.tar.gz ]; then \
+    wget -P /src/cache https://github.com/syslog-ng/syslog-ng/releases/download/syslog-ng-${SYSLOG_NG_VERSION}/syslog-ng-${SYSLOG_NG_VERSION}.tar.gz; \
+    fi && \
+    tar xvf /src/cache/syslog-ng-${SYSLOG_NG_VERSION}.tar.gz
 
 # Build syslog-ng
-WORKDIR /src
-RUN wget https://github.com/syslog-ng/syslog-ng/releases/download/syslog-ng-${SYSLOG_NG_VERSION}/syslog-ng-${SYSLOG_NG_VERSION}.tar.gz && \
-    tar xvf syslog-ng-${SYSLOG_NG_VERSION}.tar.gz && cd syslog-ng-${SYSLOG_NG_VERSION} && \
+RUN cd syslog-ng-${SYSLOG_NG_VERSION} && \
     ./configure \
     --enable-lua \
     --enable-python \
@@ -51,8 +59,11 @@ RUN wget https://github.com/syslog-ng/syslog-ng/releases/download/syslog-ng-${SY
     && make -j$(nproc) && make install
 
 # Build su-exec for privilege dropping (single C file, statically linked)
-RUN wget -O /tmp/su-exec.c https://raw.githubusercontent.com/ncopa/su-exec/master/su-exec.c && \
-    gcc -static -o /usr/local/bin/su-exec /tmp/su-exec.c
+RUN --mount=type=cache,target=/tmp/build-cache \
+    if [ ! -f /tmp/build-cache/su-exec.c ]; then \
+    wget -O /tmp/build-cache/su-exec.c https://raw.githubusercontent.com/ncopa/su-exec/master/su-exec.c; \
+    fi && \
+    gcc -static -o /usr/local/bin/su-exec /tmp/build-cache/su-exec.c
 
 # Create entrypoint script (use full paths for distroless)
 COPY --chmod=755 <<'EOF' /entrypoint.sh
@@ -68,8 +79,11 @@ RUN setcap cap_net_bind_service=+ep /usr/local/sbin/syslog-ng
 
 # Build busybox statically
 WORKDIR /busybox
-RUN wget https://busybox.net/downloads/busybox-1.37.0.tar.bz2 && \
-    tar xjf busybox-1.37.0.tar.bz2 && \
+RUN --mount=type=cache,target=/busybox/cache \
+    if [ ! -f /busybox/cache/busybox-1.37.0.tar.bz2 ]; then \
+    wget -P /busybox/cache https://busybox.net/downloads/busybox-1.37.0.tar.bz2; \
+    fi && \
+    tar xjf /busybox/cache/busybox-1.37.0.tar.bz2 && \
     cd busybox-1.37.0 && \
     make defconfig && \
     sed -i 's/.*CONFIG_STATIC.*/CONFIG_STATIC=y/' .config && \
