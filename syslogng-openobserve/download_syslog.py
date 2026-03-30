@@ -28,10 +28,13 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
     credentials = f"{username}:{password}"
     encoded_credentials = base64.b64encode(credentials.encode()).decode()
 
-    headers = {
+    # プロキシをバイパス（localhost への接続がプロキシ経由になるのを防ぐ）
+    session = requests.Session()
+    session.proxies = {"http": None, "https": None}
+    session.headers.update({
         "Authorization": f"Basic {encoded_credentials}",
         "Content-Type": "application/json"
-    }
+    })
 
     # 日時文字列をマイクロ秒に変換
     start_time_dt = datetime.datetime.strptime(START_TIME_STR, "%Y-%m-%d %H:%M:%S")
@@ -50,7 +53,7 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
         "search_type": "ui"
     }
 
-    response = requests.post(count_url, json=count_payload, headers=headers)
+    response = session.post(count_url, json=count_payload)
     if response.status_code != 200:
         print(f"Failed to fetch total count: {response.status_code}, {response.text}")
         return
@@ -65,6 +68,7 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
     print(f"Total logs to fetch: {total_logs}")
 
     last_timestamp = start_time
+    last_timestamp_count = 0  # 前回バッチ末尾の同一タイムスタンプ件数
     file_index = 1
     current_fieldnames = set()
     total_fetched = 0
@@ -85,9 +89,11 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
         start_time_batch = time.time()
 
         url = f"{api_url}/api/{org_id}/_search"
+        # >= を使用して同一タイムスタンプのログを取りこぼさないようにする
+        # 重複分は last_timestamp_count で管理してスキップする
         payload = {
             "query": {
-                "sql": f"SELECT * FROM \"{stream_name}\" WHERE _timestamp > {last_timestamp} AND _timestamp <= {end_time} ORDER BY _timestamp ASC",
+                "sql": f"SELECT * FROM \"{stream_name}\" WHERE _timestamp >= {last_timestamp} AND _timestamp <= {end_time} ORDER BY _timestamp ASC",
                 "start_time": start_time,
                 "end_time": end_time,
                 "size": chunk_size
@@ -95,27 +101,35 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
             "search_type": "ui"
         }
 
-        # print(f"DEBUG: Querying {url} with start={last_timestamp}")
-        response = requests.post(url, json=payload, headers=headers)
+        response = session.post(url, json=payload)
         if response.status_code != 200:
             print(f"Failed to fetch logs: {response.status_code}, {response.text}")
             break
 
         logs = response.json().get("hits", [])
+
+        # 前回バッチと重複するログをスキップ
+        if last_timestamp_count > 0 and logs:
+            # 先頭の last_timestamp_count 件は前回取得済みなのでスキップ
+            skip = 0
+            for log in logs:
+                if log["_timestamp"] == last_timestamp and skip < last_timestamp_count:
+                    skip += 1
+                else:
+                    break
+            logs = logs[skip:]
+
         if not logs:
             # ログが0件だが、まだ予定総数に達していない場合
             if total_fetched < total_logs:
-                # チャンクサイズが大きすぎて空が返ってきた可能性があるため、縮小してリトライ
                 if chunk_size > 10000:
                     print(f"Warning: Empty hits received with chunk_size={chunk_size}. Reducing to 10000 and retrying...")
                     chunk_size = 10000
                     continue
                 else:
-                    # 既に最小サイズなら本当に終了かエラー
                     print(f"Warning: No more logs found (fetched {total_fetched}/{total_logs}). Stopping.")
                     break
             else:
-                # 予定総数に達していれば正常終了
                 break
 
         # 新しいフィールドがあるか確認、あったらファイルを分割
@@ -136,7 +150,10 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
                 writer = csv.DictWriter(csvfile, fieldnames=sorted(current_fieldnames))
                 writer.writerows(logs)
 
-        last_timestamp = logs[-1]["_timestamp"]
+        new_last_timestamp = logs[-1]["_timestamp"]
+        # 末尾の同一タイムスタンプ件数をカウント（次バッチの重複スキップ用）
+        last_timestamp_count = sum(1 for log in logs if log["_timestamp"] == new_last_timestamp)
+        last_timestamp = new_last_timestamp
         total_fetched += len(logs)
         
         # プログレスバーの更新（取得件数が総数を超えた場合は総数を更新）
