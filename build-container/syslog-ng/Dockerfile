@@ -15,10 +15,11 @@ RUN apt-get update && apt-get install -y \
   build-essential autoconf autoconf-archive automake libtool pkg-config \
   flex bison gperf \
   libglib2.0-dev libevent-dev libcurl4-openssl-dev \
-  libjson-c-dev libsystemd-dev liblua5.4-dev python3-dev python3-venv \
+  libjson-c-dev libsystemd-dev liblua5.4-dev python3-dev \
   libsnmp-dev libesmtp-dev \
-  libdbi-dev libdbd-mysql libdbd-pgsql \
+  libdbi-dev libdbd-mysql libdbd-pgsql libdbd-sqlite3 libsqlite3-dev \
   libpcre2-dev \
+  libperl-dev perl librabbitmq-dev libssl-dev libmaxminddb-dev \
   && rm -rf /var/lib/apt/lists/*
 
 # syslog-ng のソースコードを取得
@@ -41,10 +42,17 @@ RUN ./configure \
   --enable-http \
   --enable-python \
   --enable-lua \
+  --enable-perl \
   --disable-linux-caps \
   --enable-sql \
   --enable-snmp \
   --enable-smtp \
+  --enable-amq \
+  --enable-debug \
+  --enable-dynamic-linking \
+  --enable-geoip2 \
+  --enable-ssl \
+  --with-openssl \
   --disable-java
 
 # 【修正】syslog-ng-ctl のデフォルトソケットパスを強制的に書き換え
@@ -62,8 +70,9 @@ RUN apt-get update && apt-get install -y \
   libglib2.0-0 libevent-2.1-7 libcurl4 \
   libjson-c5 libsystemd0 liblua5.4-0 python3-minimal libpython3.13 \
   libsnmp40 libesmtp6 \
-  libdbi1 libdbd-mysql libdbd-pgsql \
+  libdbi1 libdbd-mysql libdbd-pgsql libdbd-sqlite3 libsqlite3-0 \
   libpcre2-8-0 \
+  perl librabbitmq4 libmaxminddb0 libssl3 \
   tzdata \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*

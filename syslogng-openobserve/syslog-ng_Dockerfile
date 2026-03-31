@@ -1,8 +1,8 @@
-# docker buildx build . -t 1yen00docker/syslog-ng:1yen00_v4.10.2 --file syslog-ng_Dockerfile
-# docker push 1yen00docker/syslog-ng:1yen00_v4.10.2
+# docker buildx build . -t 1yen00docker/syslog-ng:1yen00_v4.11.0 --file syslog-ng_Dockerfile
+# docker push 1yen00docker/syslog-ng:1yen00_v4.11.0
 # Stage 1: Build syslog-ng and busybox
 FROM debian:stable-slim AS builder
-ARG SYSLOG_NG_VERSION=4.10.2
+ARG SYSLOG_NG_VERSION=4.11.0
 
 # Set APT proxy
 ENV http_proxy=http://192.168.0.251:3128
@@ -20,13 +20,13 @@ RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.con
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && apt-get install -y \
     build-essential libglib2.0-dev libevent-dev libjson-glib-dev libjson-c-dev \
-    libpcre2-dev libssl-dev libsystemd-dev libcap-dev libcap2-bin libdbi-dev \
-    libdbd-mariadb-perl libdbd-pgsql libsqlite3-dev libmongo-client-dev \
-    liblua5.4-dev lua5.4 python3 python3-dev python3-pip python3.13-venv \
+    libpcre2-dev libssl-dev libsystemd-dev libdbi-dev \
+    libdbd-mariadb-perl libdbd-pgsql libdbd-sqlite3 libsqlite3-dev libmongo-client-dev \
+    liblua5.4-dev lua5.4 python3 python3-dev \
     libperl-dev perl libtap-harness-archive-perl libterm-readline-gnu-perl \
     bison flex wget ca-certificates pkg-config autoconf libtool git \
     libsnmp-dev libnet-snmp-perl \
-    libgeoip-dev \
+    libmaxminddb-dev \
     librabbitmq-dev \
     libnet-dev \
     libcriterion-dev \
@@ -47,11 +47,11 @@ RUN cd syslog-ng-${SYSLOG_NG_VERSION} && \
     --enable-python \
     --enable-perl \
     --enable-snmp-dest \
-    --enable-linux-caps \
+    --disable-linux-caps \
     --enable-amq \
     --enable-debug \
     --enable-dynamic-linking \
-    --enable-geoip \
+    --enable-geoip2 \
     --enable-ipv6 \
     --enable-ssl \
     --enable-http \
@@ -74,8 +74,6 @@ PGID=${PGID:-1000}
 exec /tools/su-exec "$PUID:$PGID" /usr/local/sbin/syslog-ng "$@"
 EOF
 
-# Set capability for binding to low ports
-RUN setcap cap_net_bind_service=+ep /usr/local/sbin/syslog-ng
 
 # Build busybox statically
 WORKDIR /busybox
@@ -92,8 +90,22 @@ RUN --mount=type=cache,target=/busybox/cache \
     make -j$(nproc) && \
     cp busybox /busybox/busybox-static
 
+# Purge build tools and static libraries to vastly reduce the size of /usr/lib/x86_64-linux-gnu
+# Do not use --auto-remove so we intentionally leave runtime dependencies (like libssl3, libpcre2-8-0) installed.
+RUN apt-get purge -y \
+    build-essential gcc g++ cpp binutils autoconf automake libtool pkg-config \
+    git wget bison flex \
+    libglib2.0-dev libevent-dev libjson-glib-dev libjson-c-dev \
+    libpcre2-dev libssl-dev libsystemd-dev libdbi-dev \
+    libsqlite3-dev libmongo-client-dev \
+    liblua5.4-dev python3-dev \
+    libperl-dev \
+    libsnmp-dev libmaxminddb-dev librabbitmq-dev \
+    libnet-dev libcriterion-dev libcurl4-openssl-dev \
+    && rm -rf /usr/lib/gcc /usr/local/lib/*.a /usr/lib/x86_64-linux-gnu/*.a /usr/lib/x86_64-linux-gnu/perl/*/CORE/*.a
+
 # Stage 2: Runtime image using distroless
-FROM gcr.io/distroless/static-debian12
+FROM gcr.io/distroless/static-debian13
 
 # Declare config volume
 VOLUME ["/config"]
