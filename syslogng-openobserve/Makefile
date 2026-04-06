@@ -48,8 +48,9 @@ down:
 ps: NO_ROOT
 	@docker compose ps
 
+# :latest でアップデートしたい場合など
 update-image: NO_ROOT
-	@echo "バージョンの更新を実行します: コンテナを停止し、現在のローカルイメージをすべて削除後、新しく取得・起動します..."
+	@echo "ローカルイメージを削除し新しいイメージを取得・起動します..."
 	@docker compose down --rmi all
 	@docker compose up -d
 
@@ -84,7 +85,7 @@ show_version: NO_ROOT
 	@echo "=================================="
 	@docker compose exec OpenObserve \
 	  /openobserve --version 2>/dev/null || \
-	  docker run --rm public.ecr.aws/zinclabs/openobserve:v0.70.0 \
+	  docker run --rm public.ecr.aws/zinclabs/openobserve:v0.70.3 \
 	  /openobserve --version || true
 
 

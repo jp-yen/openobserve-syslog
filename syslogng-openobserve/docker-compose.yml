@@ -11,7 +11,7 @@ services:
   # https://gallery.ecr.aws/zinclabs/openobserve
   OpenObserve:
     # simd は AVX512 に対応していないと (Xeon とか) 動作しない
-    image: public.ecr.aws/zinclabs/openobserve:v0.70.2
+    image: public.ecr.aws/zinclabs/openobserve:v0.70.3
     container_name: OpenObserve
     ports:
       - 5080:5080
