@@ -111,7 +111,7 @@ CoreDNS のカスタム Docker イメージをビルドする手順です。
 ## Go のバージョンを指定してビルドする
     `./.go-version` にバージョンが書かれているがそれとは違うバージョンを使いたい場合。
     ```
-    make GOTOOLCHAIN=go1.26.1
+    make -j GOTOOLCHAIN=go1.26.2 BUILDOPTS="-ldflags='-s -w'"
     ```
 
 ## Go のモジュールを差し替えて (バージョンを上げて) ビルドする
@@ -119,14 +119,17 @@ CoreDNS のカスタム Docker イメージをビルドする手順です。
     CoreDNS をビルドするときに Go 言語も拾ってくるため、一度ビルドしてからモジュールのバージョンを上げ、再度ビルドする。
 
     ```
-    make GOTOOLCHAIN=go1.26.1
+    make GOTOOLCHAIN=go1.26.2
     go get google.golang.org/grpc@latest    # grpc の最新バージョンに入れ替える
+    go get go.opentelemetry.io/otel/sdk@latest
+
     go get google.golang.org/grpc@v1.79.3   # バージョンを指定して入れ替える
+    go get go.opentelemetry.io/otel/sdk@v1.43.0
 
     go mod tidy                             # 依存関係の修正
 
     go list -m google.golang.org/grpc       # バージョンの確認
     
-    make GOTOOLCHAIN=go1.26.1
+    make GOTOOLCHAIN=go1.26.2
     ```
 

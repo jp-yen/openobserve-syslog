@@ -9,19 +9,10 @@ services:
     # git clone https://github.com/coredns/coredns.git
     #
     # ブランチを指定して clone する場合
-    # git clone https://github.com/coredns/coredns.git -b master v1.12.2
+    # git clone https://github.com/coredns/coredns.git -b master v1.14.2
     #
     # cd coredns
 
-    ## GHSA-2464-8j7c-4cjm 対応 (go-viper/mapstructure/v2@v2.3.0 以前)
-    ## アップデート
-    ## go get github.com/go-viper/mapstructure/v2@v2.4.0
-    ##
-    ## 依存関係を最適化
-    ## go mod tidy
-    ##
-    ## バージョンの確認
-    ## go list -m all | grep mapstructure
 
     # make GOAMD64=v1 BUILDOPTS="-ldflags='-s -w'"
     # make
@@ -29,14 +20,13 @@ services:
     # echo 'CMD ["-conf", "/etc/coredns/Corefile"]' >> Dockerfile
     #
     # setenv HASH `git rev-parse HEAD`
-    # docker buildx build . -t 1yen00docker/coredns:$HASH -t 1yen00docker/coredns:1yen00_v1.12.3
+    # docker buildx build . -t 1yen00docker/coredns:1yen00_v1.14.2
     #
-    # // docker push 1yen00docker/coredns:$HASH
-    # docker push 1yen00docker/coredns:1yen00_v1.12.3
+    # docker push 1yen00docker/coredns:1yen00_v1.14.2
     #
     
 
-    image: 1yen00docker/coredns:1yen00_v1.14.2
+    image: 1yen00docker/coredns:1yen00_v1.14.2_1
     container_name: dns
     restart: always
     ports:
