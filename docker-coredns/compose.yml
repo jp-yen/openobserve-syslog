@@ -26,8 +26,9 @@ services:
     #
     
 
-    image: 1yen00docker/coredns:1yen00_v1.14.2_1
+    image: 1yen00docker/coredns:1yen00_v1.14.3
     container_name: dns
+    command: ["-conf", "/etc/coredns/Corefile"]
     restart: always
     ports:
       - '53:53'
