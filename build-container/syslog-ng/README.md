@@ -10,7 +10,7 @@ syslog-ng コンテナです。
 
 ```bash
 cd build-container/syslog-ng
-docker build -t 1yen00docker/syslog-ng:1yen00_v4.11.0 .
+docker build -t 1yen00docker/syslog-ng:1yen00_v4.12.0 .
 ```
 
 ### ビルド (docker buildx を使用する場合)

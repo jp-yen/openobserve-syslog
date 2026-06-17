@@ -1,8 +1,8 @@
 # syslog-ng
 # IPv6 / JSON / HTTP / Python / Lua / Linux Caps / SNMP / SMTP / SQL［MySQL & PostgreSQL］を有効化
 
-ARG DEBIAN_RELEASE=13.4
-ARG SYSLOG_NG_version=4.11.0
+ARG DEBIAN_RELEASE=13.5
+ARG SYSLOG_NG_version=4.12.0
 
 # ---- ビルドステージ ---------------------------------------------------------
 FROM debian:${DEBIAN_RELEASE} AS builder
@@ -14,8 +14,8 @@ RUN apt-get update && apt-get install -y \
   git ca-certificates \
   build-essential autoconf autoconf-archive automake libtool pkg-config \
   flex bison gperf \
-  libglib2.0-dev libevent-dev libcurl4-openssl-dev \
-  libjson-c-dev libsystemd-dev liblua5.4-dev python3-dev \
+  libglib2.0-dev libcurl4-openssl-dev \
+  libjson-c-dev libsystemd-dev liblua5.4-dev python3 python3-dev python3-venv \
   libsnmp-dev libesmtp-dev \
   libdbi-dev libdbd-mysql libdbd-pgsql libdbd-sqlite3 libsqlite3-dev \
   libpcre2-dev \
@@ -48,12 +48,13 @@ RUN ./configure \
   --enable-snmp \
   --enable-smtp \
   --enable-amq \
-  --enable-debug \
   --enable-dynamic-linking \
   --enable-geoip2 \
   --enable-ssl \
   --with-openssl \
   --disable-java
+
+  # --enable-debug \	# デバッグが必要な時に追加してください。
 
 # 【修正】syslog-ng-ctl のデフォルトソケットパスを強制的に書き換え
 RUN sed -i 's|#define PATH_CONTROL_SOCKET.*|#define PATH_CONTROL_SOCKET "/var/lib/syslog-ng/syslog-ng.ctl"|' lib/syslog-ng.h
@@ -67,8 +68,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
   ca-certificates \
   gosu \
-  libglib2.0-0 libevent-2.1-7 libcurl4 \
-  libjson-c5 libsystemd0 liblua5.4-0 python3-minimal libpython3.13 \
+  libglib2.0-0 libcurl4 \
+  libjson-c5 libsystemd0 liblua5.4-0 python3 libpython3.13 python3-venv \
   libsnmp40 libesmtp6 \
   libdbi1 libdbd-mysql libdbd-pgsql libdbd-sqlite3 libsqlite3-0 \
   libpcre2-8-0 \
