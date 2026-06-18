@@ -54,10 +54,10 @@ CoreDNS のカスタム Docker イメージをビルドする手順です。
     cd coredns
     ```
 
-    * 特定のブランチ,タグ (例: v1.14.3) をクローンする場合は以下のように指定する
+    * 特定のブランチ,タグ (例: v1.14.4) をクローンする場合は以下のように指定する
 
         ```sh
-        git clone https://github.com/coredns/coredns.git -b v1.14.3
+        git clone https://github.com/coredns/coredns.git -b v1.14.4
         ```
 
 3. **ビルドオプションの設定 (任意):**
@@ -114,14 +114,14 @@ CoreDNS のカスタム Docker イメージをビルドする手順です。
     Docker イメージにタグを付けます。
 
     ```sh
-    docker buildx build . -t 1yen00docker/coredns:1yen00_v1.14.3
+    docker buildx build . -t 1yen00docker/coredns:1yen00_v1.14.4
     ```
 
 7. **Docker イメージのプッシュ (任意):**
     ビルドしたイメージを Docker Hub にプッシュします。
 
     ```sh
-    docker push 1yen00docker/coredns:1yen00_v1.14.3
+    docker push 1yen00docker/coredns:1yen00_v1.14.4
     ```
 
 ## Go のバージョンを指定してビルドする

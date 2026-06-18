@@ -9,7 +9,7 @@ services:
     # git clone https://github.com/coredns/coredns.git
     #
     # ブランチを指定して clone する場合
-    # git clone https://github.com/coredns/coredns.git -b master v1.14.2
+    # git clone https://github.com/coredns/coredns.git -b master v1.14.4
     #
     # cd coredns
 
@@ -20,13 +20,13 @@ services:
     # echo 'CMD ["-conf", "/etc/coredns/Corefile"]' >> Dockerfile
     #
     # setenv HASH `git rev-parse HEAD`
-    # docker buildx build . -t 1yen00docker/coredns:1yen00_v1.14.2
+    # docker buildx build . -t 1yen00docker/coredns:1yen00_v1.14.4
     #
-    # docker push 1yen00docker/coredns:1yen00_v1.14.2
+    # docker push 1yen00docker/coredns:1yen00_v1.14.4
     #
     
 
-    image: 1yen00docker/coredns:1yen00_v1.14.3
+    image: 1yen00docker/coredns:1yen00_v1.14.4
     container_name: dns
     command: ["-conf", "/etc/coredns/Corefile"]
     restart: always
