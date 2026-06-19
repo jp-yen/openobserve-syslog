@@ -68,7 +68,7 @@ conf_check: NO_ROOT
 	@docker run --rm --name syslog-ng-conf_check \
 	  -v ./syslog-ng/conf:/config \
 	  --entrypoint /usr/local/sbin/syslog-ng \
-	  1yen00docker/syslog-ng:1yen00_v4.11.0 \
+	  1yen00docker/syslog-ng:1yen00_v4.12.0 \
 	  -s -f /config/syslog-ng.conf || true
 	@echo ""
 

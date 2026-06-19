@@ -26,11 +26,11 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /src
 RUN git clone --depth 1 --filter=blob:none -b syslog-ng-${SYSLOG_NG_version} https://github.com/syslog-ng/syslog-ng.git .
 
-# 指定された機能で syslog-ng をビルド
-RUN ./autogen.sh
 # 最適化、必要であれば -march=native も
 ENV CFLAGS="-pipe -O2"
 ENV CXXFLAGS="-pipe -O2"
+# 指定された機能で syslog-ng をビルド
+RUN ./autogen.sh
 
 # ビルド
 RUN ./configure \
@@ -44,6 +44,7 @@ RUN ./configure \
   --enable-lua \
   --enable-perl \
   --disable-linux-caps \
+  --disable-tcp-wrapper \
   --enable-sql \
   --enable-snmp \
   --enable-smtp \
