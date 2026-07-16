@@ -17,12 +17,27 @@ USERNAME = "root@root.root"
 PASSWORD = "root"
 STREAM_NAME = "syslog_ng"
 ORG_ID = "default"
-CHUNK_SIZE = 10000
+CHUNK_SIZE = 100000
 
 # ログ取得範囲（日時指定）
-START_TIME_STR = "2026-01-10 00:00:00"
-END_TIME_STR   = "2026-01-17 23:59:59"
+START_TIME_STR = "2026-03-30 12:00:00"
+END_TIME_STR   = "2026-06-02 12:00:00"
+
+# 追加の抽出条件（SQLのWHERE句形式。不要な場合は "" とする）
+# 例: "host = 'myhome-ix2207' AND program = 'IPWC'"
+QUERY_FILTER = "host = 'myhome-ix2207' and program = 'IPWC' and (pid = '003' OR pid = '004' OR pid = '013' OR pid = '028')"
 # ===============
+
+def _format_time(seconds):
+    """秒数を読みやすい形式に変換する"""
+    if seconds < 60:
+        return f"{seconds:.0f}s"
+    elif seconds < 3600:
+        return f"{seconds//60:.0f}m{seconds%60:.0f}s"
+    else:
+        hours = seconds // 3600
+        minutes = (seconds % 3600) // 60
+        return f"{hours:.0f}h{minutes:.0f}m"
 
 def download_logs(api_url, username, password, stream_name, org_id="default", chunk_size=10000):
     credentials = f"{username}:{password}"
@@ -41,12 +56,15 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
     end_time_dt   = datetime.datetime.strptime(END_TIME_STR, "%Y-%m-%d %H:%M:%S")
     start_time = int(start_time_dt.timestamp() * 1_000_000)
     end_time   = int(end_time_dt.timestamp() * 1_000_000)
+    
+    # フィルター条件のSQL文字列を作成
+    filter_clause = f" AND {QUERY_FILTER}" if QUERY_FILTER else ""
 
     # 総件数を取得
     count_url = f"{api_url}/api/{org_id}/_search"
     count_payload = {
         "query": {
-            "sql": f"SELECT COUNT(*) as total FROM \"{stream_name}\" WHERE _timestamp >= {start_time} AND _timestamp <= {end_time}",
+            "sql": f"SELECT COUNT(*) as total FROM \"{stream_name}\" WHERE _timestamp >= {start_time} AND _timestamp <= {end_time}{filter_clause}",
             "start_time": start_time,
             "end_time": end_time
         },
@@ -68,11 +86,11 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
     print(f"Total logs to fetch: {total_logs}")
 
     last_timestamp = start_time
-    last_timestamp_count = 0  # 前回バッチ末尾の同一タイムスタンプ件数
-    file_index = 1
+
+    file_index = 0
     current_fieldnames = set()
     total_fetched = 0
-    temp_file = f"logs_temp_{file_index}.csv"
+    temp_file = None
     
     # 全体の開始時刻を記録
     overall_start_time = time.time()
@@ -90,10 +108,10 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
 
         url = f"{api_url}/api/{org_id}/_search"
         # >= を使用して同一タイムスタンプのログを取りこぼさないようにする
-        # 重複分は last_timestamp_count で管理してスキップする
+        # 末尾の同一タイムスタンプのログは次のバッチで再取得する
         payload = {
             "query": {
-                "sql": f"SELECT * FROM \"{stream_name}\" WHERE _timestamp >= {last_timestamp} AND _timestamp <= {end_time} ORDER BY _timestamp ASC",
+                "sql": f"SELECT * FROM \"{stream_name}\" WHERE _timestamp >= {last_timestamp} AND _timestamp <= {end_time}{filter_clause} ORDER BY _timestamp ASC",
                 "start_time": start_time,
                 "end_time": end_time,
                 "size": chunk_size
@@ -108,16 +126,21 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
 
         logs = response.json().get("hits", [])
 
-        # 前回バッチと重複するログをスキップ
-        if last_timestamp_count > 0 and logs:
-            # 先頭の last_timestamp_count 件は前回取得済みなのでスキップ
-            skip = 0
-            for log in logs:
-                if log["_timestamp"] == last_timestamp and skip < last_timestamp_count:
-                    skip += 1
-                else:
-                    break
-            logs = logs[skip:]
+        # バッチがフルサイズの場合、末尾の同一タイムスタンプのログを除去
+        # （次のバッチで >= を使って再取得するため、重複を防ぐ）
+        if len(logs) >= chunk_size:
+            tail_ts = logs[-1]["_timestamp"]
+            trimmed = [log for log in logs if log["_timestamp"] != tail_ts]
+            if trimmed:
+                logs = trimmed
+                last_timestamp = tail_ts
+            else:
+                # 全ログが同一タイムスタンプの場合はそのまま保持して次へ進む
+                print(f"Warning: All {len(logs)} logs share the same timestamp. Some data may be missed.")
+                last_timestamp = tail_ts + 1
+        elif logs:
+            # 最終バッチ: 全件保持、タイムスタンプを更新
+            last_timestamp = logs[-1]["_timestamp"] + 1
 
         if not logs:
             # ログが0件だが、まだ予定総数に達していない場合
@@ -137,7 +160,7 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
         for log in logs:
             new_fields.update(log.keys())
 
-        if new_fields != current_fieldnames:
+        if new_fields != current_fieldnames or temp_file is None:
             current_fieldnames = new_fields
             file_index += 1
             temp_file = f"logs_temp_{file_index}.csv"
@@ -150,10 +173,6 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
                 writer = csv.DictWriter(csvfile, fieldnames=sorted(current_fieldnames))
                 writer.writerows(logs)
 
-        new_last_timestamp = logs[-1]["_timestamp"]
-        # 末尾の同一タイムスタンプ件数をカウント（次バッチの重複スキップ用）
-        last_timestamp_count = sum(1 for log in logs if log["_timestamp"] == new_last_timestamp)
-        last_timestamp = new_last_timestamp
         total_fetched += len(logs)
         
         # プログレスバーの更新（取得件数が総数を超えた場合は総数を更新）
@@ -180,18 +199,7 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
             eta_seconds = remaining_logs / avg_rate if avg_rate > 0 else 0
         else:
             eta_seconds = 0
-        
-        # 時間を読みやすい形式に変換
-        def format_time(seconds):
-            if seconds < 60:
-                return f"{seconds:.0f}s"
-            elif seconds < 3600:
-                return f"{seconds//60:.0f}m{seconds%60:.0f}s"
-            else:
-                hours = seconds // 3600
-                minutes = (seconds % 3600) // 60
-                return f"{hours:.0f}h{minutes:.0f}m"
-        
+
         # チャンク番号の計算
         chunk_num = total_fetched // chunk_size
         if len(logs) < chunk_size:  # 最後のチャンクの場合
@@ -204,9 +212,9 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
         # プログレスバーと詳細情報を同時に出力
         print(f"Downloading logs: {progress_pct:3.0f}%|{bar}| {total_fetched:,}/{pbar.total:,} logs")
         print(f" unit {current_step:2d}/{actual_total_chunks}: "
-              f"Elapsed: {format_time(elapsed_time)} (step {batch_time:.3f}s) | "
-              f"ETA: {format_time(eta_seconds)} | "
-              f"Last: {last_timestamp_iso}")
+              f"Elapsed: {_format_time(elapsed_time)} (step {batch_time:.3f}s) | "
+              f"ETA: {_format_time(eta_seconds)} | "
+              f"Cursor: {last_timestamp_iso}")
         print()  # 空行で見やすくする
 
         time.sleep(0.5)
@@ -236,6 +244,10 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
 # ダウンロードしたログを統合
 def merge_csv_files():
     csv_files = sorted(glob.glob("logs_temp_*.csv"))
+    if not csv_files:
+        print("No temporary CSV files found. Nothing to merge.")
+        return
+
     merged_file = "logs_merged.csv"
     all_fieldnames = []
 
@@ -243,6 +255,8 @@ def merge_csv_files():
     for file in csv_files:
         with open(file, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
+            if reader.fieldnames is None:
+                continue
             for field in reader.fieldnames:
                 if field not in all_fieldnames:
                     all_fieldnames.append(field)
