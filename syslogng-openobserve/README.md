@@ -23,7 +23,7 @@ cp .env.example .env
 
 ```sh
 # 例: .env で UID=1000, GID=1000 と指定した場合
-sudo chown -R 1000:1000 ./syslog-ng/
+sudo chown -R 1000:1000 ./axosyslog/
 ```
 
 その後、Compose 定義があるディレクトリで以下のコマンドを実行します。
@@ -49,7 +49,7 @@ make up
 ### OpenObserve
 
 * **公式ドキュメント:** [OpenObserve Self-hosted Installation](https://openobserve.ai/docs/guide/quickstart/#self-hosted-installation)
-* **イメージ:** `public.ecr.aws/zinclabs/openobserve:v0.80.0`
+* **イメージ:** `public.ecr.aws/zinclabs/openobserve:v0.92.1`
   * 注意: `simd` タグ付きのイメージ (例: `public.ecr.aws/zinclabs/openobserve:latest-simd`) は AVX512 命令セットに対応した CPU (主に Xeon など) が必要です。
 * **コンテナ名:** `OpenObserve`
 * **ポートマッピング:**
@@ -62,11 +62,11 @@ make up
   * `./openobserve/.env` (追加の環境変数を定義可能)
 * **再起動ポリシー:** `unless-stopped`
 
-### syslog-ng
+### AxoSyslog
 
-* **参考ドキュメント:** [linuxserver/syslog-ng](https://docs.linuxserver.io/images/docker-syslog-ng/)
-* **イメージ:** `1yen00docker/syslog-ng:1yen00_v4.11.0`
-* **コンテナ名:** `syslog-ng`
+* **公式リポジトリ:** [axoflow/axosyslog](https://github.com/axoflow/axosyslog)
+* **イメージ:** `1yen00docker/axosyslog:1yen00_v4.26.0`
+* **コンテナ名:** `axosyslog`
 * **ポート:**
   * `514/tcp,udp` # 標準的な RFC 5424 形式用 (改行区切り)
   * `2514/tcp`     # RFC 5424 octet-counted 形式用
@@ -74,12 +74,12 @@ make up
   * `4514/tcp,udp` # RFC 3164 形式用
   * `5514/tcp,udp` # Fortigate 用
   * `5515/tcp,udp` # Palo Alto (PAN-OS) 用
-  * `6514/tcp,udp` # JSON 構造化ログ用
+  * `6514/tcp`     # JSON 構造化ログ用
   * `7514/tcp,udp` # AlaxalA 用
   * `999/tcp`       # CEF ログ用
 * **ボリュームマッピング:**
-  * `./syslog-ng/conf/`: `/config/` 設定ファイル
-  * `./syslog-ng/buffer/`: `/buffer/` ログのバッファリング用
+  * `./axosyslog/conf/`: `/config/` 設定ファイル
+  * `./axosyslog/buffer/`: `/buffer/` ログのバッファリング用
 * **環境変数:**
   * `PUID=${UID}` (プロセスのユーザーID: .env の UID が適用されます)
   * `PGID=${GID}` (プロセスのグループID: .env の GID が適用されます)
@@ -92,11 +92,10 @@ make up
 
 1. **設定ファイルの準備:**
     * `./openobserve/.env`: 必要に応じて OpenObserve の設定を記述します。
-    * `./syslog-ng/conf/syslog-ng.conf`: `syslog-ng` の設定ファイルです。ログのフィルタリングや OpenObserve への転送設定などを記述します。
+    * `./axosyslog/conf/syslog-ng.conf`: AxoSyslog の設定ファイルです。ログのフィルタリングや OpenObserve への転送設定などを記述します。
       (設定例は `syslog-ng` のドキュメントや OpenObserve の連携ガイドを参照してください)
 
 2. **サービスの起動:**
-
     ```sh
     make up
     ```
@@ -115,13 +114,13 @@ make up
     | 4514 | TCP/UDP | RFC 3164 形式用 |
     | 5514 | TCP/UDP | Fortigate 用 |
     | 5515 | TCP/UDP | Palo Alto (PAN-OS) 用 |
-    | 6514 | TCP/UDP | JSON 構造化ログ用 |
+    | 6514 | TCP | JSON 構造化ログ用 |
     | 7514 | TCP/UDP | AlaxalA 用 |
     | 999 | TCP | CEF ログ用 |
 
 5. **ログの確認:**
     OpenObserve の UI で収集されたログを検索・確認できます。
-    `docker compose logs syslog-ng` や `docker compose logs OpenObserve` で各コンテナのログも確認できます。
+    `docker compose logs axosyslog` や `docker compose logs OpenObserve` で各コンテナのログも確認できます。
 
 6. **設定変更の反映:**
     設定ファイルを変更した場合、変更内容に応じて以下のコマンドを実行します。
@@ -132,7 +131,7 @@ make up
         make reload
         ```
 
-        `syslog-ng` コンテナを再起動して設定を反映します。
+        `axosyslog` コンテナを再起動して設定を反映します。
 
     * **Compose 設定ファイル (docker-compose.yml) や `.env` を変更した場合:**
 
@@ -183,7 +182,7 @@ make up
     make clean
     ```
 
-    注意: このコマンドは `OpenObserve` の永続化データと `syslog-ng` の一部ログファイルを削除します。実行には `root` 権限が必要な場合があります。
+    注意: このコマンドは `OpenObserve` の永続化データと `AxoSyslog` の一部ログファイルを削除します。実行には `root` 権限が必要な場合があります。
 * **イメージの更新と再起動 (バージョンアップ):**
 
     ```sh
@@ -191,14 +190,14 @@ make up
     ```
 
     このコマンドは、コンテナを停止し、Compose 定義で管理しているサービスに関連する全てのイメージを削除した後、新しいイメージでコンテナを再起動します。データボリュームは保持されるため、ログは削除されません。
-* **syslog-ng 設定の高速リロード:**
+* **AxoSyslog 設定の高速リロード:**
 
     ```sh
     make reload
     ```
 
-    `syslog-ng` コンテナを再起動して設定を反映します。コンテナを再作成せずに設定変更を反映させたい場合に便利です。
-* **syslog-ng 設定ファイルのチェック:**
+    `axosyslog` コンテナを再起動して設定を反映します。コンテナを再作成せずに設定変更を反映させたい場合に便利です。
+* **AxoSyslog 設定ファイルのチェック:**
 
     ```sh
     make conf_check

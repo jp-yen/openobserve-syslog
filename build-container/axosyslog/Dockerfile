@@ -1,14 +1,14 @@
-# syslog-ng
-# IPv6 / JSON / HTTP / Python / Lua / Linux Caps / SNMP / SMTP / SQL［MySQL & PostgreSQL］を有効化
+# AxoSyslog (Cloud-Ready Syslog-ng distribution)
+# IPv6 / JSON / HTTP / Python / SNMP / SQL［MySQL, PostgreSQL, SQLite］/ AMQP / GeoIP2 / SSL を有効化 (Linux Caps/Java は無効化)
 
 ARG DEBIAN_RELEASE=13.5
-ARG SYSLOG_NG_version=4.12.0
+ARG AXOSYSLOG_VERSION=4.26.0
 
 # ---- ビルドステージ ---------------------------------------------------------
 FROM debian:${DEBIAN_RELEASE} AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
-ARG SYSLOG_NG_version
+ARG AXOSYSLOG_VERSION
 
 RUN apt-get update && apt-get install -y \
   git ca-certificates \
@@ -22,14 +22,13 @@ RUN apt-get update && apt-get install -y \
   libperl-dev perl librabbitmq-dev libssl-dev libmaxminddb-dev \
   && rm -rf /var/lib/apt/lists/*
 
-# syslog-ng のソースコードを取得
+# AxoSyslog のソースコードを取得
 WORKDIR /src
-RUN git clone --depth 1 --filter=blob:none -b syslog-ng-${SYSLOG_NG_version} https://github.com/syslog-ng/syslog-ng.git .
+RUN git clone --depth 1 --filter=blob:none -b axosyslog-${AXOSYSLOG_VERSION} https://github.com/axoflow/axosyslog.git .
 
-# 最適化、必要であれば -march=native も
 ENV CFLAGS="-pipe -O2"
 ENV CXXFLAGS="-pipe -O2"
-# 指定された機能で syslog-ng をビルド
+
 RUN ./autogen.sh
 
 # ビルド
@@ -39,32 +38,26 @@ RUN ./configure \
   --with-pidfile-dir=/var/lib/syslog-ng \
   --enable-ipv6 \
   --enable-json \
-  --enable-http \
-  --enable-python \
-  --enable-lua \
-  --enable-perl \
-  --disable-linux-caps \
-  --disable-tcp-wrapper \
   --enable-sql \
-  --enable-snmp \
-  --enable-smtp \
-  --enable-amq \
+  --enable-afsnmp \
+  --enable-amqp \
   --enable-dynamic-linking \
   --enable-geoip2 \
   --enable-ssl \
   --with-openssl \
+  --disable-linux-caps \
+  --disable-tcp-wrapper \
   --disable-java
 
-  # --enable-debug \	# デバッグが必要な時に追加してください。
-
-# 【修正】syslog-ng-ctl のデフォルトソケットパスを強制的に書き換え
-RUN sed -i 's|#define PATH_CONTROL_SOCKET.*|#define PATH_CONTROL_SOCKET "/var/lib/syslog-ng/syslog-ng.ctl"|' lib/syslog-ng.h
-RUN make -j"$(nproc)" && make install DESTDIR=/install
+# 【修正】syslog-ng-ctl のデフォルトソケットパスを強制的に書き換え & ビルド実行
+RUN sed -i 's|#define PATH_CONTROL_SOCKET.*|#define PATH_CONTROL_SOCKET "/var/lib/syslog-ng/syslog-ng.ctl"|' lib/syslog-ng.h && \
+    make -j"$(nproc)" && make install DESTDIR=/install
 
 # ---- 実行ステージ ---------------------------------------------------------
 FROM debian:${DEBIAN_RELEASE}-slim AS runtime
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV PUID=65534 PGID=65534
 
 RUN apt-get update && apt-get install -y \
   ca-certificates \
@@ -79,24 +72,15 @@ RUN apt-get update && apt-get install -y \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
-# ビルド成果物をコピー
+# ビルド成果物・スクリプト・デフォルト設定のコピー
 COPY --from=builder /install/ /
-RUN ldconfig
-ENV LD_LIBRARY_PATH=/usr/local/lib
-# RUN setcap 'cap_net_bind_service=+ep' /usr/local/sbin/syslog-ng # disable-linux-caps
-
-# ベースディレクトリ
-RUN mkdir -p /etc/syslog-ng /var/lib/syslog-ng /var/log/syslog-ng /config
-
-# デフォルトの PUID/PGID を定義（上書き可能）
-ENV PUID=65534 PGID=65534
-
-# entrypoint スクリプトを追加
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-# デフォルト設定を保存（起動時に /config が空の場合に使用）
 COPY syslog-ng.conf /usr/local/share/syslog-ng/default.conf
+
+# ディレクトリ作成・権限付与・ライブラリ読み込みを一括実行
+RUN ldconfig && \
+    mkdir -p /etc/syslog-ng /var/lib/syslog-ng /var/log/syslog-ng /config && \
+    chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 514/tcp 514/udp
 

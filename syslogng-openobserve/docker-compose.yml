@@ -25,19 +25,19 @@ services:
     restart: unless-stopped
     logging: *logging-def
 
-  # https://hub.docker.com/r/linuxserver/syslog-ng
-  # https://docs.linuxserver.io/images/docker-syslog-ng/
-  syslog-ng:
-    image: 1yen00docker/syslog-ng:1yen00_v4.12.0
-    container_name: syslog-ng
+  # AxoSyslog
+  # https://github.com/axoflow/axosyslog
+  axosyslog:
+    image: 1yen00docker/axosyslog:1yen00_v4.26.0
+    container_name: axosyslog
     environment:
       - PUID=${UID:-1000}
       - PGID=${GID:-1000}
       - TZ=${TZ:-Asia/Tokyo}
       # - SYSLOGNG_OPTS=-d # デバッグ時に有効化
     volumes:
-      - ./syslog-ng/conf/:/config/
-      - ./syslog-ng/buffer/:/buffer/
+      - ./axosyslog/conf/:/config/
+      - ./axosyslog/buffer/:/buffer/
     ports:
       - 514:514/tcp # 514/tcp RFC 5424 形式 改行区切り
       - 514:514/udp # 514/udp RFC 5424 形式

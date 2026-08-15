@@ -1,6 +1,6 @@
 # 概要
 
-syslog-ng コンテナです。
+AxoSyslog (Cloud-Ready Syslog-ng distribution) コンテナです。
 セキュリティ向上のため、デフォルトで非 root ユーザーとして動作します。
 `PUID`/`PGID` を指定することで、保存されるログファイルの所有権をホスト側のユーザーに合わせることができ、管理が容易になります。
 
@@ -9,8 +9,8 @@ syslog-ng コンテナです。
 以下のコマンドを実行してください。
 
 ```bash
-cd build-container/syslog-ng
-docker build -t 1yen00docker/syslog-ng:1yen00_v4.12.0 .
+cd build-container/axosyslog
+docker build -t 1yen00docker/axosyslog:1yen00_v4.26.0 .
 ```
 
 ### ビルド (docker buildx を使用する場合)
@@ -21,7 +21,7 @@ docker build -t 1yen00docker/syslog-ng:1yen00_v4.12.0 .
 キャッシュが強力に効くため、再ビルドが高速になります。
 
 ```bash
-docker buildx build -t 1yen00docker/syslog-ng:1yen00_v4.11.0 --load .
+docker buildx build -t 1yen00docker/axosyslog:1yen00_v4.26.0 --load .
 ```
 
 **2. マルチアーキテクチャビルド (AMD64 & ARM64)**
@@ -33,34 +33,34 @@ PC (amd64) と Raspberry Pi (arm64) の両方で動くイメージを作る場�
 docker buildx create --name mybuilder --use
 
 # 両方のアーキテクチャ用にビルドして出力 (例: レジストリへのプッシュ)
-# docker buildx build --platform linux/amd64,linux/arm64 -t start9/syslog-ng:latest --push .
+# docker buildx build --platform linux/amd64,linux/arm64 -t start9/axosyslog:latest --push .
 ```
 
 ### バージョン指定ビルド
 
-syslog-ng の特定のバージョンを指定してビルドしたい場合は、`--build-arg` を使用します。
+AxoSyslog の特定のバージョンを指定してビルドしたい場合は、`--build-arg` を使用します。
 
 ```bash
 # バージョンを変数で定義
-VERSION="4.10.2"
+VERSION="4.26.0"
 
 docker buildx build \
-  --build-arg SYSLOG_NG_version="${VERSION}" \
-  -t syslog-ng-dev:"${VERSION}" \
+  --build-arg AXOSYSLOG_VERSION="${VERSION}" \
+  -t axosyslog-dev:"${VERSION}" \
   --load .
 ```
 
-（GitHub のリリースタグ `syslog-ng-x.y.z` に対応します）
+（GitHub のリリースタグ `axosyslog-x.y.z` に対応します）
 ビルド時は、生成されるイメージにもバージョン情報やGitコミットハッシュをタグ付けすることを推奨します。
 
 ```bash
 # 変数設定 (例)
-VERSION="4.10.2"
+VERSION="4.26.0"
 
 # ビルド実行
 docker build \
-  --build-arg SYSLOG_NG_version="${VERSION}" \
-  -t syslog-ng-dev:"${VERSION}" \
+  --build-arg AXOSYSLOG_VERSION="${VERSION}" \
+  -t axosyslog-dev:"${VERSION}" \
   .
 ```
 
