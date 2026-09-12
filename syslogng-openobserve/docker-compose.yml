@@ -11,7 +11,7 @@ services:
   # https://gallery.ecr.aws/zinclabs/openobserve
   OpenObserve:
     # simd は AVX512 に対応していないと (Xeon とか) 動作しない
-    image: public.ecr.aws/zinclabs/openobserve:v0.92.1
+    image: public.ecr.aws/zinclabs/openobserve:v1.0.0
     container_name: OpenObserve
     ports:
       - 5080:5080
@@ -19,25 +19,25 @@ services:
       - ./openobserve/data/:/data/
     environment:
       - TZ=${TZ:-Asia/Tokyo}
-    env_file:
-      - ./openobserve/.env
+      - ZO_DATA_DIR=${ZO_DATA_DIR:-/data}
+      - ZO_ROOT_USER_EMAIL=${ZO_ROOT_USER_EMAIL:-root@root.root}
+      - ZO_ROOT_USER_PASSWORD=${ZO_ROOT_USER_PASSWORD:-root}
     user: '${UID:-1000}:${GID:-1000}'
     restart: unless-stopped
     logging: *logging-def
 
-  # AxoSyslog
-  # https://github.com/axoflow/axosyslog
-  axosyslog:
-    image: 1yen00docker/axosyslog:1yen00_v4.26.0
-    container_name: axosyslog
+  # Fluent Bit (Fast and Lightweight Log Processor)
+  # https://fluentbit.io/
+  fluent-bit:
+    image: fluent/fluent-bit:5.1.2
+    container_name: fluent-bit
     environment:
-      - PUID=${UID:-1000}
-      - PGID=${GID:-1000}
       - TZ=${TZ:-Asia/Tokyo}
-      # - SYSLOGNG_OPTS=-d # デバッグ時に有効化
     volumes:
-      - ./axosyslog/conf/:/config/
-      - ./axosyslog/buffer/:/buffer/
+      - ./fluent-bit/conf/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
+      - ./fluent-bit/conf/parsers.conf:/fluent-bit/etc/parsers.conf:ro
+      - ./fluent-bit/scripts/:/fluent-bit/scripts/:ro
+      - ./fluent-bit/buffer/:/fluent-bit/buffer/
     ports:
       - 514:514/tcp # 514/tcp RFC 5424 形式 改行区切り
       - 514:514/udp # 514/udp RFC 5424 形式
@@ -50,10 +50,11 @@ services:
       - 5514:5514/udp # 5514/udp Fortigate 用
       - 5515:5515/tcp # 5515/tcp Palo Alto 用
       - 5515:5515/udp # 5515/udp Palo Alto 用
-      - 6514:6514/tcp # 6514/tcp RFC 5424 形式 構造化ログ用
+      - 6514:6514/tcp # 6514/tcp JSON 構造化ログ用
+      - 6514:6514/udp # 6514/udp JSON 構造化ログ用
       - 7514:7514/tcp # 7514/tcp AlaxalA 用
       - 7514:7514/udp # 7514/udp AlaxalA 用
       - 999:999/tcp # 999/tcp CEF
-      # - 6514:6514/tcp  # syslog TLS はきちんと設定していないので使えない
     restart: unless-stopped
     logging: *logging-def
+

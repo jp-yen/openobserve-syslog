@@ -7,6 +7,7 @@ import time
 import datetime
 import glob
 import os
+import tempfile
 from tqdm import tqdm
 
 # OpenObserve から指定範囲のログをダウンロードする
@@ -23,7 +24,7 @@ CHUNK_SIZE = 100000
 START_TIME_STR = "2026-03-30 12:00:00"
 END_TIME_STR   = "2026-06-02 12:00:00"
 
-# 追加の抽出条件（SQLのWHERE句形式。不要な場合は "" とする）
+# 追加の抽出条件（SQLのWHERE句形式。フィルターが不要な場合は "" とする）
 # 例: "host = 'myhome-ix2207' AND program = 'IPWC'"
 QUERY_FILTER = "host = 'myhome-ix2207' and program = 'IPWC' and (pid = '003' OR pid = '004' OR pid = '013' OR pid = '028')"
 # ===============
@@ -39,7 +40,7 @@ def _format_time(seconds):
         minutes = (seconds % 3600) // 60
         return f"{hours:.0f}h{minutes:.0f}m"
 
-def download_logs(api_url, username, password, stream_name, org_id="default", chunk_size=10000):
+def download_logs(api_url, username, password, stream_name, temp_dir, org_id="default", chunk_size=10000):
     credentials = f"{username}:{password}"
     encoded_credentials = base64.b64encode(credentials.encode()).decode()
 
@@ -163,13 +164,13 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
         if new_fields != current_fieldnames or temp_file is None:
             current_fieldnames = new_fields
             file_index += 1
-            temp_file = f"logs_temp_{file_index}.csv"
-            with open(temp_file, "w", newline="") as csvfile:
+            temp_file = os.path.join(temp_dir, f"logs_temp_{file_index}.csv")
+            with open(temp_file, "w", newline="", encoding="utf-8") as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=sorted(current_fieldnames))
                 writer.writeheader()
                 writer.writerows(logs)
         else:
-            with open(temp_file, "a", newline="") as csvfile:
+            with open(temp_file, "a", newline="", encoding="utf-8") as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=sorted(current_fieldnames))
                 writer.writerows(logs)
 
@@ -242,8 +243,8 @@ def download_logs(api_url, username, password, stream_name, org_id="default", ch
     print(f"Download complete. Total fetched: {total_fetched} logs")
 
 # ダウンロードしたログを統合
-def merge_csv_files():
-    csv_files = sorted(glob.glob("logs_temp_*.csv"))
+def merge_csv_files(temp_dir):
+    csv_files = sorted(glob.glob(os.path.join(temp_dir, "logs_temp_*.csv")))
     if not csv_files:
         print("No temporary CSV files found. Nothing to merge.")
         return
@@ -281,18 +282,10 @@ def merge_csv_files():
 
     print(f"Merged into {merged_file}")
 
-    # 一時ファイル削除
-    print("Cleaning up temporary files...")
-    for file in csv_files:
-        try:
-            os.remove(file)
-            print(f"Deleted: {file}")
-        except Exception as e:
-            print(f"Failed to delete {file}: {e}")
-
 def main():
-    download_logs(API_URL, USERNAME, PASSWORD, STREAM_NAME, ORG_ID, CHUNK_SIZE)
-    merge_csv_files()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        download_logs(API_URL, USERNAME, PASSWORD, STREAM_NAME, temp_dir, ORG_ID, CHUNK_SIZE)
+        merge_csv_files(temp_dir)
 
 if __name__ == "__main__":
     main()

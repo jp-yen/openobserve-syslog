@@ -1,29 +1,20 @@
-# OpenObserve と syslog-ng による syslog サーバー
+# OpenObserve と Fluent Bit による syslog サーバー
 
-このプロジェクトは、`docker compose` を使用して `syslog-ng` と `OpenObserve` を連携させた syslog サーバーを構築するためのものです。`syslog-ng` が受信したログを `OpenObserve` に転送し、ログの集約、検索、可視化を行います。
+このプロジェクトは、`docker compose` を使用して `Fluent Bit` (Lua スクリプト使用) と `OpenObserve` を連携させた syslog サーバーを構築するためのものです。`Fluent Bit` が受信したログを Lua スクリプトでパース・整形し、`OpenObserve` に転送してログの集約を行います。
 
 ## 概要
 
-* **syslog-ng**: ネットワークから syslog を受け付け、OpenObserve に転送します
+* **Fluent Bit**: ネットワークから syslog を受け付け、Lua スクリプトでパース・加工して OpenObserve に転送します。
 * **OpenObserve**: 受信した syslog を UI で表示します。DB 上で圧縮されるため、受信するログが多い環境でも安心です。
 
 ## 起動方法
 
 `.env.example` を参考に `.env` ファイルを作成し、コンテナを実行するユーザーの UID/GID を指定してください。
-`syslog-ng` はここで指定されたユーザーで動作し、ログファイルの書き込みを行います。
-そのため、`.env` 内の UID/GID はホスト側のディレクトリ所有者と一致している必要があります。
 
 ```sh
 cp .env.example .env
 # .env ファイルを開き、id コマンド等で確認した自身の UID/GID を設定してください (デフォルト: 1000:1000)
 # 必要に応じて Timezone (TZ) も変更してください (デフォルト: Asia/Tokyo)
-```
-
-もし書き込みエラー (Permission denied) が発生する場合は、ディレクトリの所有権を `.env` で指定したユーザーの UID/GID と一致するように修正してください。
-
-```sh
-# 例: .env で UID=1000, GID=1000 と指定した場合
-sudo chown -R 1000:1000 ./axosyslog/
 ```
 
 その後、Compose 定義があるディレクトリで以下のコマンドを実行します。
@@ -39,8 +30,56 @@ make up
 * ユーザー名: `root@root.root`
 * パスワード: `root`
 
-(ユーザー名とパスワードは `openobserve/.env` で指定)
+(ユーザー名とパスワードは `.env` で指定)
 左側に並んでいる中から「ストリーム」をクリックし、「syslog-ng」の行の🔍をクリックするとログが表示されます。
+
+## ログフィールド仕様
+
+Lua スクリプトで整形された出力フィールドのメモ。
+
+| フィールド | 内容 |
+|---|---|
+| `_timestamp` | **ログ生成時刻** — ログ内タイムスタンプを UTC UNIX エポック時刻（内部的には秒＋小数点以下6桁のマイクロ秒精度 16桁整数で完全保持。※OpenObserve WebUI 上の表示仕様では小数点以下3桁のミリ秒まで表示）。抽出不可時は受信時刻にフォールバック |
+| `received_at` | **Fluent Bit 受信時刻** — コンテナ設定のタイムゾーンに従った ISO 8601 形式（例: `YYYY-MM-DDTHH:MM:SS.ffffff+09:00`） |
+| `parse_type` | **パース種別** — どのパーサー/形式として識別されたか（値の一覧は下表参照） |
+| `message` | ログ本文のみ |
+| `raw_message` | 受信した生ログ文字列全体 |
+| `priority` | ログレベル 大文字: `INFO` / `WARNING` / `ERR` / `DEBUG` / `NOTICE` / `CRIT` / `ALERT` / `EMERG` |
+| `facility` | ファシリティ 大文字: `LOCAL0`〜`LOCAL7` / `USER` / `DAEMON` / `AUTH` 等 |
+| `host` | ログ内ホスト名 > 接続元IP |
+| `host_from` | 実際の TCP/UDP 接続元 IP |
+| `source` | 入力識別子 例: `s_fluent_bit/6514/tcp` |
+
+### `parse_type` の値一覧
+
+| カテゴリ / 機器 | `parse_type` | 説明・判定形式 |
+|---|---|---|
+| **標準 Syslog** | `RFC5424` | RFC 5424 形式 (`<pri>1 YYYY-MM-DDTHH:MM:SS ...`、標準Linux/CoreDNS等) |
+| | `RFC3164_PRI_Host_Prog_PID` | `<pri> Mon DD HH:MM:SS host program[pid]: msg` (NEC UNIVERGE IX ルーター等) |
+| | `RFC3164_PRI_Host_Prog` | `<pri> Mon DD HH:MM:SS host program: msg` |
+| | `RFC3164_PRI_Host` | `<pri> Mon DD HH:MM:SS host msg` (プログラム名なし) |
+| | `RFC3164_PRI` | `<pri> Mon DD HH:MM:SS msg` (ホスト名なし) |
+| | `BSD` | PRI なしの BSD Syslog 形式 (`Mon DD HH:MM:SS ...`) |
+| | `YAMAHA` | YAMAHA RTX 日時形式 (`YYYY/MM/DD HH:MM:SS ...`) |
+| **Cisco 機器** | `Cisco_PRI_Seq_Host_SD_Seq` | `<pri>seq1: host: [syslog@9...]: seq2: msg` (PRI+Seq+Host名+構造化データ+Seq2) |
+| | `Cisco_PRI_Seq_Host_SD` | `<pri>seq1: host: [syslog@9...]: msg` (PRI+Seq+Host名+構造化データ、Cat3560CG等) |
+| | `Cisco_PRI_Seq_SD_Seq` | `<pri>seq1: [syslog@9...]: seq2: msg` (PRI+Seq+構造化データ+Seq2、Host名なし) |
+| | `Cisco_PRI_Seq_SD` | `<pri>seq1: [syslog@9...]: msg` (PRI+Seq+構造化データ、Host名なし) |
+| | `Cisco_PRI_Seq_Host` | `<pri>seq: host: msg` (PRI+Seq+Host名) |
+| | `Cisco_PRI_Seq` | `<pri>seq: msg` (PRI+Seq、Host名なし) |
+| | `Cisco_PRI_Host` | `<pri>host: msg` (PRI+Host名、Seqなし) |
+| | `Cisco_Seq_Host` | `seq: host: msg` (Seq+Host名、PRIなし、標準 IOS) |
+| | `Cisco_Seq` | `seq: msg` (Seqのみ、PRIなし、Host名なし) |
+| | `Cisco_FACILITY` | ヘッダー未合致だが `%FACILITY-SEV-MNEMONIC:` を含む形式 |
+| **セキュリティ / ネットワーク機器** | `FortiGate` | FortiGate Key-Value 形式 (`devname=`, `type=`, `date= time=` 等) |
+| | `PAN-OS` | Palo Alto PAN-OS CSV 構造化ログ形式 |
+| | `AlaxalA` | AlaxalA スイッチログ形式 (AX2600S / AX3660S / AX3630S / AX2100S 等の運用ログ・画面出力形式・メッセージテキスト形式、および従来形式に対応) |
+| | `CEF` | CEF 形式 (`CEF:0\|...`) |
+| **アプリケーション / JSON** | `JSON` | 有効な JSON 構造化ログ（内部の logfmt / タイムスタンプも自動解析） |
+| | `LOGFMT` | 非 JSON だが `msg="..."` や `key=value` ペアを含む形式 |
+| **フォールバック** | `*_FALLBACK` | パース不能時に生ログをロストせず保存（`JSON_FALLBACK`, `RFC5424_FALLBACK`, `RFC3164_FALLBACK`, `Cisco_FALLBACK`, `FortiGate_FALLBACK`, `PAN-OS_FALLBACK`, `AlaxalA_FALLBACK`, `CEF_FALLBACK`, `RAW_FALLBACK`） |
+
+
 
 ## 現行デフォルト設定
 
@@ -49,8 +88,7 @@ make up
 ### OpenObserve
 
 * **公式ドキュメント:** [OpenObserve Self-hosted Installation](https://openobserve.ai/docs/guide/quickstart/#self-hosted-installation)
-* **イメージ:** `public.ecr.aws/zinclabs/openobserve:v0.92.1`
-  * 注意: `simd` タグ付きのイメージ (例: `public.ecr.aws/zinclabs/openobserve:latest-simd`) は AVX512 命令セットに対応した CPU (主に Xeon など) が必要です。
+* **イメージ:** `public.ecr.aws/zinclabs/openobserve:v1.0.0`
 * **コンテナ名:** `OpenObserve`
 * **ポートマッピング:**
   * `5080:5080` (OpenObserve の UI および API)
@@ -58,42 +96,37 @@ make up
   * `./openobserve/data/`: `/data/` (OpenObserve のデータ永続化用)
 * **環境変数:**
   * `TZ=${TZ}` (タイムゾーン設定: .env で指定可能)
-* **env_file:**
-  * `./openobserve/.env` (追加の環境変数を定義可能)
-* **再起動ポリシー:** `unless-stopped`
+  * `ZO_DATA_DIR` / `ZO_ROOT_USER_EMAIL` / `ZO_ROOT_USER_PASSWORD` (.env で指定可能)
 
-### AxoSyslog
+### Fluent Bit
 
-* **公式リポジトリ:** [axoflow/axosyslog](https://github.com/axoflow/axosyslog)
-* **イメージ:** `1yen00docker/axosyslog:1yen00_v4.26.0`
-* **コンテナ名:** `axosyslog`
+* **公式ドキュメント:** [Fluent Bit Documentation](https://docs.fluentbit.io/)
+* **イメージ:** `fluent/fluent-bit:5.1.2`
+* **コンテナ名:** `fluent-bit`
 * **ポート:**
-  * `514/tcp,udp` # 標準的な RFC 5424 形式用 (改行区切り)
-  * `2514/tcp`     # RFC 5424 octet-counted 形式用
-  * `3514/tcp,udp` # Cisco 機器用
-  * `4514/tcp,udp` # RFC 3164 形式用
-  * `5514/tcp,udp` # Fortigate 用
-  * `5515/tcp,udp` # Palo Alto (PAN-OS) 用
-  * `6514/tcp`     # JSON 構造化ログ用
-  * `7514/tcp,udp` # AlaxalA 用
-  * `999/tcp`       # CEF ログ用
+  * `514/tcp,udp`  # 標準的な RFC 5424, RFC 3164, YAMAHA RTX 形式用 (改行区切り)
+  * `2514/tcp`      # RFC 5424 octet-counted 形式用 (RFC 6587 / RFC 5425 フレーミング)
+  * `3514/tcp,udp`  # Cisco 機器用 (PRI, シーケンス番号, 構造化データ等に対応)
+  * `4514/tcp,udp`  # 標準的な RFC 3164, RFC 5424, YAMAHA RTX, NEC IX 等用 (改行区切り)
+  * `5514/tcp,udp`  # Fortigate 用 (Key-Value 形式)
+  * `5515/tcp,udp`  # Palo Alto (PAN-OS) 用 (CSV 形式)
+  * `6514/tcp,udp`  # JSON 構造化ログ / LOGFMT 形式用
+  * `7514/tcp,udp`  # AlaxalA スイッチ用 (運用ログ・画面出力形式等)
+  * `999/tcp`        # CEF ログ用
 * **ボリュームマッピング:**
-  * `./axosyslog/conf/`: `/config/` 設定ファイル
-  * `./axosyslog/buffer/`: `/buffer/` ログのバッファリング用
+  * `./fluent-bit/conf/fluent-bit.conf`: `/fluent-bit/etc/fluent-bit.conf` (メイン設定)
+  * `./fluent-bit/conf/parsers.conf`: `/fluent-bit/etc/parsers.conf` (パーサー定義)
+  * `./fluent-bit/scripts/`: `/fluent-bit/scripts/` (ポート別の Lua 変換スクリプト群)
+  * `./fluent-bit/buffer/`: `/fluent-bit/buffer/` (ログのディスクバッファ用)
 * **環境変数:**
-  * `PUID=${UID}` (プロセスのユーザーID: .env の UID が適用されます)
-  * `PGID=${GID}` (プロセスのグループID: .env の GID が適用されます)
   * `TZ=${TZ}` (タイムゾーン設定: .env の TZ が適用されます)
-* **再起動ポリシー:** `unless-stopped`
 
 ## 使い方
 
-この下の「syslog 設定例」は、接続先機器やアプリケーション側で設定する内容です。上の「現行デフォルト設定」と役割が異なるため、分けて掲載しています。
-
 1. **設定ファイルの準備:**
-    * `./openobserve/.env`: 必要に応じて OpenObserve の設定を記述します。
-    * `./axosyslog/conf/syslog-ng.conf`: AxoSyslog の設定ファイルです。ログのフィルタリングや OpenObserve への転送設定などを記述します。
-      (設定例は `syslog-ng` のドキュメントや OpenObserve の連携ガイドを参照してください)
+    * `.env`: UID/GID、TZ、OpenObserve の管理者アカウント等を記述します（`.env.example` から作成）。
+    * `./fluent-bit/conf/fluent-bit.conf`: Fluent Bit のメイン設定ファイルです。
+    * `./fluent-bit/scripts/`: 各ポートに対応する独立したパース用 Lua スクリプト (`common.lua`, `syslog_standard.lua`, `cisco.lua`, `json.lua` 等) です。
 
 2. **サービスの起動:**
     ```sh
@@ -108,30 +141,30 @@ make up
 
     | ポート | プロトコル | 用途 |
     |--------|------------|------|
-    | 514 | TCP/UDP | 標準的な RFC 5424 形式用 |
-    | 2514 | TCP | RFC 5424 octet-counted 形式用 |
-    | 3514 | TCP/UDP | Cisco 機器用 |
-    | 4514 | TCP/UDP | RFC 3164 形式用 |
-    | 5514 | TCP/UDP | Fortigate 用 |
-    | 5515 | TCP/UDP | Palo Alto (PAN-OS) 用 |
-    | 6514 | TCP | JSON 構造化ログ用 |
-    | 7514 | TCP/UDP | AlaxalA 用 |
+    | 514 | TCP/UDP | 標準的な RFC 5424, RFC 3164, YAMAHA RTX 形式用 (改行区切り) |
+    | 2514 | TCP | RFC 5424 octet-counted 形式用 (RFC 6587 / RFC 5425 フレーミング) |
+    | 3514 | TCP/UDP | Cisco 機器用 (PRI, シーケンス番号, 構造化データ等に対応) |
+    | 4514 | TCP/UDP | 標準的な RFC 3164, RFC 5424, YAMAHA RTX, NEC IX 等用 (改行区切り) |
+    | 5514 | TCP/UDP | Fortigate 用 (Key-Value 形式) |
+    | 5515 | TCP/UDP | Palo Alto (PAN-OS) 用 (CSV 形式) |
+    | 6514 | TCP/UDP | JSON 構造化ログ / LOGFMT 形式用 |
+    | 7514 | TCP/UDP | AlaxalA スイッチ用 (運用ログ・画面出力形式等) |
     | 999 | TCP | CEF ログ用 |
 
 5. **ログの確認:**
     OpenObserve の UI で収集されたログを検索・確認できます。
-    `docker compose logs axosyslog` や `docker compose logs OpenObserve` で各コンテナのログも確認できます。
+    `docker compose logs fluent-bit` や `docker compose logs OpenObserve` で各コンテナのログも確認できます。
 
 6. **設定変更の反映:**
-    設定ファイルを変更した場合、変更内容に応じて以下のコマンドを実行します。
+    設定ファイルや Lua スクリプトを変更した場合、変更内容に応じて以下のコマンドを実行します。
 
-    * **`syslog-ng.conf` を変更した場合:**
+    * **`fluent-bit.conf` や Lua スクリプトを変更した場合:**
 
         ```sh
         make reload
         ```
 
-        `axosyslog` コンテナを再起動して設定を反映します。
+        `fluent-bit` コンテナを再起動して設定を反映します。
 
     * **Compose 設定ファイル (docker-compose.yml) や `.env` を変更した場合:**
 
@@ -149,75 +182,22 @@ make up
 
 ## Makefile による操作
 
-`Makefile` を使用して、一般的な操作を簡単に行うことができます。
+`Makefile` を使用した主な操作コマンド一覧です。
 
-* **コンテナの起動:**
+| コマンド | 説明 | 権限 |
+|---|---|:---:|
+| `make up` | コンテナの起動 | 一般 |
+| `make down` | コンテナの停止・削除 | 一般 |
+| `make restart` | `docker compose pull` 後にコンテナ再作成（更新反映） | 一般 |
+| `make reload` | `fluent-bit` コンテナを再起動して設定を即時反映 | 一般 |
+| `make ps` | 起動状況の確認 | 一般 |
+| `make conf_check` | Fluent Bit 設定ファイルの構文チェック（dry-run） | 一般 |
+| `make clean` | データ・ログの削除（初期化） | root |
+| `make update-image` | ローカルイメージ全削除後に再取得・再起動（ログ保持） | 一般 |
+| `make test_syslog` | 各パーサーへテスト syslog を送信（各機器・形式の検証） | 一般 |
+| `make flood_syslog` / `make syslog_s` | 大量 syslog ダミーメッセージの送信（負荷試験） | root |
 
-    ```sh
-    make up
-    ```
-
-* **コンテナの停止、削除:**
-
-    ```sh
-    make down
-    ```
-
-* **コンテナの再起動とバージョンアップ:**
-
-    ```sh
-    make restart
-    ```
-
-    このコマンドは `docker compose pull` 後にコンテナを再作成します (`down` && `up`)。Compose 設定ファイルのイメージタグを更新した場合、このコマンドで反映できます。
-* **起動状況の確認:**
-
-    ```sh
-    make ps
-    ```
-
-* **データとログの削除 (初期化):**
-
-    ```sh
-    make clean
-    ```
-
-    注意: このコマンドは `OpenObserve` の永続化データと `AxoSyslog` の一部ログファイルを削除します。実行には `root` 権限が必要な場合があります。
-* **イメージの更新と再起動 (バージョンアップ):**
-
-    ```sh
-    make update-image
-    ```
-
-    このコマンドは、コンテナを停止し、Compose 定義で管理しているサービスに関連する全てのイメージを削除した後、新しいイメージでコンテナを再起動します。データボリュームは保持されるため、ログは削除されません。
-* **AxoSyslog 設定の高速リロード:**
-
-    ```sh
-    make reload
-    ```
-
-    `axosyslog` コンテナを再起動して設定を反映します。コンテナを再作成せずに設定変更を反映させたい場合に便利です。
-* **AxoSyslog 設定ファイルのチェック:**
-
-    ```sh
-    make conf_check
-    ```
-
-* **テスト用 syslog メッセージの送信:**
-
-    ```sh
-    make flood_syslog
-    ```
-
-    または
-
-    ```sh
-    make syslog_s
-    ```
-
-    これらのコマンドはテスト目的でダミーの syslog メッセージを送信します。実行には `root` 権限が必要な場合があります。
-
-各コマンドの詳細や実行に必要な権限については、`Makefile` を参照してください。
+詳細は `Makefile` を参照してください。
 
 ## ログのダウンロード
 
@@ -259,7 +239,6 @@ pip3 install requests tqdm
 
 3. **出力ファイル:**
     * `logs_merged.csv`: ダウンロードした syslog データ の CSV ファイル
-    * 処理中に一時的に `logs_temp_*.csv` ファイルが作成されますが、完了後に自動削除されます
 
 ### 機能
 
@@ -273,4 +252,4 @@ pip3 install requests tqdm
 
 ### 送信元機器の設定例
 
-送信元機器やアプリケーションの設定例は別ファイルに分けました。詳細は [送信元機器の設定例](README-sender-examples.md) を参照してください。
+送信元機器やアプリケーションの設定例は [送信元機器の設定例](README-sender-examples.md) を参照のこと。

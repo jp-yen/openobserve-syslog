@@ -8,9 +8,6 @@
 
 ```conf
 config
-set system syslog local facility all level 'info'
-set system syslog local facility local7 level 'debug'
-set system syslog remote <syslog server> facility all level 'info'
 set system syslog remote <syslog server> facility local7 level 'debug'
 set system syslog remote <syslog server> format include-timezone
 set system syslog remote <syslog server> port 514
@@ -37,6 +34,7 @@ clock timezone JST 9 0
 ! タイムスタンプ設定 (ローカル・syslog 送信両方)
 service timestamps debug datetime msec localtime show-timezone year
 service timestamps log datetime msec localtime show-timezone year
+! シーケンス番号を有効化 (logの抜け、順序のチェック)
 service sequence-numbers
 ! ログにホスト名を含める
 logging origin-id hostname
@@ -69,7 +67,8 @@ write memory
 syslog の送信元アドレスで振り分けを行う。
 
 ```conf
-ntp server <ntp サーバ>     # NTPで時間同期をしていないと syslog は送信しない
+# NTPで時間同期をしていないと syslog は送信しない
+ntp server <ntp サーバ>
 
 log host <syslog server>
 log host <syslog server> time utc-offset plus 9
@@ -108,7 +107,7 @@ logging tcp connect delay 0
 logging tcp reconnect delay 1
 ```
 
-tcp 接続の時、接続・切断のログを表示 (切れている間はログが転送されていない可能性あり)
+tcp 接続の時、接続・切断のログを表示したい場合 (切れている間はログが転送されていない可能性あり)
 
 ```
 logging tcp notify open
@@ -159,73 +158,79 @@ syslog debug off
 syslog local address <送信元アドレス>
 ```
 
-「＜PRI＞MSG」という、ファシリティーとシビアリティー、メッセージだけで構成されているため
-この設定では syslog-ng は正しくフォーマットを処理できません。
-RTX は送信先のポート番号を指定できないので
-syslog-ng.conf で IP アドレスで処理を切り替える必要があります。
+旧ファームウェアの RTX は「`<PRI> [TAG] MSG`」というヘッダー（ホスト名・時刻なし）で送信されます。
 
-本リポジトリの `syslog-ng/conf/syslog-ng.conf` には既に設定が含まれています。
-`filter f_old_yamaha` の IP アドレスをご自身の環境に合わせて変更してください。
-
-```
-# syslog-ng/conf/syslog-ng.conf 内の該当箇所
-filter f_old_yamaha {
-  host("^192.168.99.99$") or
-  host("^192.168.99.222$");   # RTX のアドレス (正規表現で指定)
-};
-```
-
-host(1.2.3.4) とか書くと、11.2.3.44 にもマッチするので注意。'^' と '$' はじゅーよー
-
-**処理内容 (参考):**
-
-```
-log {
-  source(s_rfc5424);
-  filter(f_old_yamaha);
-  # RTXのログはPROGRAMとMESSAGEに分割されてしまうため、ここで結合する
-  rewrite {
-    set("${PROGRAM} ${MESSAGE}", value("MESSAGE"));
-    unset(value("PROGRAM"));
-  };
-  destination(d_openobserve);
-  flags(final);
-};
-```
+本システムの Fluent Bit パーサー（`syslog_standard.lua`）がこれを自動検出し、以下のように自動補正して登録します：
+- **`host`**: 送信元 IP アドレスを自動設定
+- **`program`**: 先頭の `[TAG]`（例: `[NAT]`, `[IP]`）を抽出して設定
+- **`message`**: `[TAG]` を除いた本文を設定
+- **`_timestamp`**: 受信時刻（高精度）を付与
 </details>
 
-#### rsyslog
+#### rsyslog (514/tcp 推奨)
 
 <details>
 <summary>設定例を表示</summary>
 
-**最小限の設定 (514/tcp - 推奨):**
+rsyslog から最も多くの情報（マイクロ秒精度タイムスタンプ、タイムゾーン、PID、構造化データ等）を欠落なく送信するには、**RFC 5424 形式（IETF 形式）かつ TCP（514/tcp）** を使用するのが最も推奨されます。
+
+**推奨設定 1: rsyslog v8+ アクション構文（最も推奨）:**
+
+`/etc/rsyslog.d/50-remote.conf` などの設定ファイルに記述します。
 
 ```conf
 # /etc/rsyslog.d/50-remote.conf
+# RFC 5424 形式（高精度タイムスタンプ・PID・タイムゾーン付き）で TCP 送信
+action(
+    type="omfwd"
+    target="<syslog server>"
+    port="514"
+    protocol="tcp"
+    template="RSYSLOG_SyslogProtocol23Format"
+)
+```
+
+**推奨設定 2: 1行レガシー構文:**
+
+```conf
+# /etc/rsyslog.d/50-remote.conf
+*.* @@<syslog server>:514;RSYSLOG_SyslogProtocol23Format
+```
+
+**最小限のデフォルト設定 (514/tcp):**
+
+```conf
 *.* @@<syslog server>:514
 ```
 
 **UDP で送信する場合 (514/udp):**
 
 ```conf
+# RFC 5424 形式 (UDP)
+*.* @<syslog server>:514;RSYSLOG_SyslogProtocol23Format
+
+# デフォルト形式 (UDP)
 *.* @<syslog server>:514
 ```
 
-**RFC 3164 形式で送信する場合 (4514):**
+**RFC 3164 形式専用ポートで送信する場合 (4514):**
 
 ```conf
 *.* @@<syslog server>:4514  # TCP
 *.* @<syslog server>:4514   # UDP
 ```
 
-**設定の反映:**
+**設定の確認と反映:**
 
 ```sh
+# 構文チェック
+sudo rsyslogd -N1
+
+# 反映
 sudo systemctl restart rsyslog
 ```
 
-**注意:** `@@` は TCP、`@` は UDP を意味します
+**注意:** `@@` は TCP、`@` は UDP を意味します。
 </details>
 
 #### syslog-ng (514/tcp または 514/udp)

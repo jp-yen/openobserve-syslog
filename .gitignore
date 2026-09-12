@@ -19,19 +19,15 @@ syslogng-openobserve/openobserve/db/
 syslogng-openobserve/openobserve/data/*
 !syslogng-openobserve/openobserve/data/.gitkeep
 
-# AxoSyslog
-syslogng-openobserve/axosyslog/buffer/
-!syslogng-openobserve/axosyslog/buffer/**/.keepme
-syslogng-openobserve/axosyslog/conf/syslog-ng.persist
-syslogng-openobserve/axosyslog/conf/syslog-ng.pid
-syslogng-openobserve/axosyslog/conf/syslog-ng.ctl
-# すべてのログファイルを無視...
-syslogng-openobserve/axosyslog/conf/log/*
-!syslogng-openobserve/axosyslog/conf/log/.keepme
-syslogng-openobserve/scratch/
+# Fluent Bit
+syslogng-openobserve/fluent-bit/buffer/
+!syslogng-openobserve/fluent-bit/buffer/**/.keepme
 
 # Temporary files
 syslogng-openobserve/*.csv
 
 # CoreDNS build artifacts
 docker-coredns/coredns/
+
+# dnsmasq (検証中断のため除外)
+docker-dnsmasq/
