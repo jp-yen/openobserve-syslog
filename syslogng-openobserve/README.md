@@ -88,7 +88,7 @@ Lua スクリプトで整形された出力フィールドのメモ。
 ### OpenObserve
 
 * **公式ドキュメント:** [OpenObserve Self-hosted Installation](https://openobserve.ai/docs/guide/quickstart/#self-hosted-installation)
-* **イメージ:** `public.ecr.aws/zinclabs/openobserve:v1.0.0`
+* **イメージ:** `public.ecr.aws/zinclabs/openobserve:v1.1.2`
 * **コンテナ名:** `OpenObserve`
 * **ポートマッピング:**
   * `5080:5080` (OpenObserve の UI および API)
@@ -101,7 +101,7 @@ Lua スクリプトで整形された出力フィールドのメモ。
 ### Fluent Bit
 
 * **公式ドキュメント:** [Fluent Bit Documentation](https://docs.fluentbit.io/)
-* **イメージ:** `fluent/fluent-bit:5.1.2`
+* **イメージ:** `fluent/fluent-bit:5.1.5`
 * **コンテナ名:** `fluent-bit`
 * **ポート:**
   * `514/tcp,udp`  # 標準的な RFC 5424, RFC 3164, YAMAHA RTX 形式用 (改行区切り)

@@ -20,7 +20,7 @@
 	forward . 1.0.0.1 8.8.4.4 1.1.1.1 8.8.8.8 210.130.0.1 210.130.1.1 202.232.2.2 202.232.2.3 {
 		health_check 60s	# 60秒ごとにヘルスチェック
 		max_fails 2			# 2回エラーが発生するとフォワード先から除外
-		policy random		# forward 先はランダム
+		policy sequential		# forward 先はランダム
 		tls					# DoT (DNS over TLS) を使用する
 	}
 
